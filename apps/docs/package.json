@@ -1,0 +1,35 @@
+{
+  "name": "docsplayroom",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --turbo --port 8000",
+    "start": "next start",
+    "postinstall": "fumadocs-mdx"
+  },
+  "dependencies": {
+    "@repo/ui": "*",
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/mdx": "^2.0.13",
+    "fumadocs-core": "^15.6.6",
+    "fumadocs-mdx": "^11.7.1",
+    "fumadocs-typescript": "^4.0.6",
+    "fumadocs-ui": "^15.6.6",
+    "next": "^15.4.2",
+    "postcss": "^8.5.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.11"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/node": "^22.15.3",
+    "@types/react": "19.1.0",
+    "@types/react-dom": "19.1.1",
+    "eslint": "^9.31.0",
+    "eslint-config-next": "^15.4.5",
+    "typescript": "5.8.2"
+  }
+}

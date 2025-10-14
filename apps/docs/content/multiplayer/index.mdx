@@ -1,0 +1,305 @@
+---
+title: Multiplayer Games
+description: Build engaging multiplayer experiences with PlayroomKit's comprehensive multiplayer system.
+---
+
+<div className="mb-8">
+  <video 
+    width="100%" 
+    height="400" 
+    
+    autoPlay
+    loop
+    muted
+    className="rounded-lg shadow-lg"
+    poster="/multiplayer-hero.jpg"
+  >
+    <source src="/6.mp4" type="video/mp4" />
+  </video>
+</div>
+
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+  <div className="bg-gradient-to-br from-gray-500 to-gray-600 p-6 rounded-lg text-white">
+    <div className="text-3xl mb-2">⚡</div>
+    <h3 className="text-xl font-bold mb-2">Real-time Sync</h3>
+    <p className="text-gray-100">Instant state synchronization across all players</p>
+  </div>
+  
+  <div className="bg-gradient-to-br from-slate-500 to-slate-600 p-6 rounded-lg text-white">
+    <div className="text-3xl mb-2">🎮</div>
+    <h3 className="text-xl font-bold mb-2">Lobby System</h3>
+    <p className="text-slate-100">Advanced player management and team balancing</p>
+  </div>
+  
+  <div className="bg-gradient-to-br from-zinc-500 to-zinc-600 p-6 rounded-lg text-white">
+    <div className="text-3xl mb-2">🎯</div>
+    <h3 className="text-xl font-bold mb-2">Matchmaking</h3>
+    <p className="text-zinc-100">Smart algorithms for perfect player matching</p>
+  </div>
+  
+  <div className="bg-gradient-to-br from-neutral-500 to-neutral-600 p-6 rounded-lg text-white">
+    <div className="text-3xl mb-2">📡</div>
+    <h3 className="text-xl font-bold mb-2">RPC System</h3>
+    <p className="text-neutral-100">Instant communication between players</p>
+  </div>
+</div>
+
+## Core Features
+
+### Real-time State Synchronization
+Keep your game state synchronized across all players in real-time with automatic conflict resolution and optimized network protocols.
+
+![State Synchronization](/sync.jpeg)
+
+### Lobby Management
+Create sophisticated lobby systems with player management, ready states, team assignments, and custom settings.
+
+### Matchmaking
+Advanced matchmaking algorithms that connect players based on skill level, preferences, and connection quality.
+
+### Communication
+Built-in RPC (Remote Procedure Call) system for instant communication between players and game events.
+
+## Modules
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-8">
+  <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+    <div className="text-2xl mb-3">🏢</div>
+    <h3 className="text-lg font-semibold mb-3">
+      <a href="/docs/multiplayer/modules/lobby" className="text-blue-600 hover:text-blue-800">
+        Lobby System
+      </a>
+    </h3>
+    <p className="text-sm text-gray-600">
+      Complete player management with teams, chat, and spectator support.
+    </p>
+  </div>
+
+  <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+    <div className="text-2xl mb-3">🔄</div>
+    <h3 className="text-lg font-semibold mb-3">
+      <a href="/docs/multiplayer/modules/state-management" className="text-blue-600 hover:text-blue-800">
+        State Management
+      </a>
+    </h3>
+    <p className="text-sm text-gray-600">
+      Real-time synchronization with conflict resolution and optimization.
+    </p>
+  </div>
+
+  <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+    <div className="text-2xl mb-3">📞</div>
+    <h3 className="text-lg font-semibold mb-3">
+      <a href="/docs/multiplayer/modules/rpc" className="text-blue-600 hover:text-blue-800">
+        RPC Communication
+      </a>
+    </h3>
+    <p className="text-sm text-gray-600">
+      Event-driven messaging system for instant player communication.
+    </p>
+  </div>
+</div>
+
+## Matchmaking
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8">
+  <div className="bg-gray-50 rounded-lg p-6">
+    <div className="flex items-center mb-3">
+      <div className="text-2xl mr-3">♟️</div>
+      <h3 className="text-lg font-semibold">
+        <a href="/docs/multiplayer/matchmaking/turn-based-game" className="text-blue-600 hover:text-blue-800">
+          Turn-Based Games
+        </a>
+      </h3>
+    </div>
+    <p className="text-sm text-gray-600">
+      Turn management, timers, and move validation for strategic games.
+    </p>
+  </div>
+
+  <div className="bg-gray-50 rounded-lg p-6">
+    <div className="flex items-center mb-3">
+      <div className="text-2xl mr-3">💾</div>
+      <h3 className="text-lg font-semibold">
+        <a href="/docs/multiplayer/matchmaking/persistence" className="text-blue-600 hover:text-blue-800">
+          Persistence
+        </a>
+      </h3>
+    </div>
+    <p className="text-sm text-gray-600">
+      Save games, player stats, and leaderboards with historical data.
+    </p>
+  </div>
+</div>
+
+## Input & Controls
+
+<div className="flex flex-col md:flex-row gap-6 my-8">
+  <div className="flex-1">
+    ![Joystick Controls](/joystick.jpg)
+    <div className="bg-white border rounded-lg p-4">
+      <h3 className="text-lg font-semibold mb-2">
+        <a href="/docs/multiplayer/input/joystick" className="text-blue-600 hover:text-blue-800">
+          🕹️ Joystick Controls
+        </a>
+      </h3>
+      <ul className="text-sm text-gray-600 space-y-1">
+        <li>• Virtual joystick for mobile</li>
+        <li>• Customizable sensitivity</li>
+        <li>• Multi-touch support</li>
+        <li>• Cross-platform compatibility</li>
+      </ul>
+    </div>
+  </div>
+
+  <div className="flex-1">
+    ![Gamepad Support](/gamepad1.jpg)
+    <div className="bg-white border rounded-lg p-4">
+      <h3 className="text-lg font-semibold mb-2">
+        <a href="/docs/multiplayer/input/gamepad" className="text-blue-600 hover:text-blue-800">
+          🎮 Gamepad Support
+        </a>
+      </h3>
+      <ul className="text-sm text-gray-600 space-y-1">
+        <li>• Console controller support</li>
+        <li>• Button mapping</li>
+        <li>• Analog stick handling</li>
+        <li>• Multiple controller management</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+## Streaming & Integration
+
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 my-8">
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+    <div className="text-3xl mb-2">🎥</div>
+    <h4 className="font-semibold text-gray-800">
+      <a href="/docs/multiplayer/streaming/twitch" className="hover:underline">
+        Twitch Integration
+      </a>
+    </h4>
+    <p className="text-sm text-gray-600 mt-2">Chat integration and viewer participation</p>
+  </div>
+
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+    <div className="text-3xl mb-2">💬</div>
+    <h4 className="font-semibold text-gray-800">
+      <a href="/docs/multiplayer/streaming/discord" className="hover:underline">
+        Discord Integration
+      </a>
+    </h4>
+    <p className="text-sm text-gray-600 mt-2">Bot integration and rich presence</p>
+  </div>
+
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+    <div className="text-3xl mb-2">📺</div>
+    <h4 className="font-semibold text-gray-800">
+      <a href="/docs/multiplayer/streaming/stream" className="hover:underline">
+        Live Streaming
+      </a>
+    </h4>
+    <p className="text-sm text-gray-600 mt-2">OBS integration and stream optimization</p>
+  </div>
+
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+    <div className="text-3xl mb-2">📱</div>
+    <h4 className="font-semibold text-gray-800">
+      <a href="/docs/multiplayer/streaming/tiktok-live" className="hover:underline">
+        TikTok Live
+      </a>
+    </h4>
+    <p className="text-sm text-gray-600 mt-2">Live engagement and gift interactions</p>
+  </div>
+</div>
+
+
+## Quick Examples
+
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-8">
+  <div className="bg-white border rounded-lg p-6">
+    <h3 className="text-lg text-black font-semibold mb-4 flex items-center">
+      <span className="text-2xl mr-2">⚡</span>
+      Basic Multiplayer Setup
+    </h3>
+
+```javascript
+import { Playroom } from '@PlayroomKit/client';
+
+// Initialize
+await Playroom.init('your-api-key');
+
+// Create room
+const room = await Playroom.createRoom({ maxPlayers: 4 });
+
+// Handle players
+Playroom.onPlayerJoin((player) => {
+    console.log(`${player.name} joined!`);
+});
+
+// Sync state
+Playroom.setState('gameStarted', true);
+```
+  </div>
+
+  <div className="bg-white border rounded-lg p-6">
+    <h3 className="text-lg font-semibold text-black mb-4 flex items-center">
+      <span className="text-2xl mr-2">⚛️</span>
+      React Integration
+    </h3>
+
+```jsx
+import { usePlayroom, usePlayroomState } from '@PlayroomKit/react';
+
+function MultiplayerGame() {
+    const { players, isConnected } = usePlayroom();
+    const [gameState, setGameState] = usePlayroomState('game', { phase: 'lobby' });
+    
+    return (
+        <div>
+            <h2>Players: {players.length}</h2>
+
+            <button onClick={() => setGameState({...gameState, phase: 'playing'})}>
+                Start Game
+            </button>
+        </div>
+    );
+}
+```
+  </div>
+</div>
+
+## Best Practices
+
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 my-8">
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+    <div className="text-2xl mb-2">🌐</div>
+    <h4 className="font-semibold text-black mb-2">Network Latency</h4>
+    <p className="text-sm text-gray-600">Always account for network delays in your game design</p>
+  </div>
+  
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+    <div className="text-2xl mb-2">✅</div>
+    <h4 className="font-semibold text-gray-800 mb-2">Validate Actions</h4>
+    <p className="text-sm text-gray-600">Use server-side validation for important game actions</p>
+  </div>
+  
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+    <div className="text-2xl mb-2">🔌</div>
+    <h4 className="font-semibold text-gray-800 mb-2">Handle Disconnections</h4>
+    <p className="text-sm text-gray-600">Gracefully handle player disconnections and reconnections</p>
+  </div>
+  
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+    <div className="text-2xl mb-2">⚡</div>
+    <h4 className="font-semibold text-gray-800 mb-2">Optimize Updates</h4>
+    <p className="text-sm text-gray-600">Only sync necessary data and use efficient update patterns</p>
+  </div>
+  
+  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+    <div className="text-2xl mb-2">🧪</div>
+    <h4 className="font-semibold text-gray-800 mb-2">Test Networks</h4>
+    <p className="text-sm text-gray-600">Test your game with various network conditions</p>
+  </div>
+</div>

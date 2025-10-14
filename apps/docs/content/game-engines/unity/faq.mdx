@@ -1,0 +1,117 @@
+---
+title: FAQ
+description: Frequently Asked Questions and common errors in PlayroomKit for Unity.
+---
+import { Accordions, Accordion } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Accordions>
+  <Accordion title="How to display player's profile picture in Unity?">
+    <p>PlayroomPlayer.GetProfile().photo is formatted as <code>data:image/svg+xml,&#123;svg encoded for url&#125;</code>. In order to display it in Unity:</p>
+    <ul>
+      <li>Remove <code>data:image/svg+xml</code> from the string.</li>
+      <li>Decode the rest using <code>HttpUtility.UrlDecode()</code></li>
+      <li>Display the result into an <code>SVGImage</code> component.</li>
+    </ul>
+
+    <Callout type="warning">
+      Requires Unity's Vector Graphics package from <code>com.unity.vectorgraphics</code>, which is an experimental package.
+    </Callout>
+
+    ```csharp
+    private void LoadSVG(string svgBytes) {
+      // Split the string to escape the real data
+      svgBytes = svgBytes.Split(",".ToCharArray(), 2)[1];
+      // Decode from the URL encoding
+      svgBytes = HttpUtility.UrlDecode(svgBytes);
+      VectorUtils.TessellationOptions tesselationOptions = new VectorUtils.TessellationOptions();
+
+      using (StringReader reader = new StringReader(svgBytes))
+      {
+          SVGParser.SceneInfo sceneInfo = SVGParser.ImportSVG(reader);
+          tesselationOptions.MaxCordDeviation = float.MaxValue;
+          tesselationOptions.MaxTanAngleDeviation = float.MaxValue;
+          tesselationOptions.StepDistance = 1f;
+          tesselationOptions.SamplingStepSize = 0.1f;
+
+          List<VectorUtils.Geometry> geoms =
+          VectorUtils.TessellateScene(sceneInfo.Scene, tesselationOptions);
+
+          // Build a sprite with the tessellated geometry.
+          Sprite sprite = VectorUtils.BuildSprite(geoms, 100.0f, VectorUtils.Alignment.Center, Vector2.zero, 128, true);
+          sprite.name = "SVGimage";
+          profilePicture.sprite = sprite;
+      }
+    }
+    ```
+
+    <p>Thanks to <strong>Zy</strong> from our Discord for this tip.</p>
+  </Accordion>
+
+  <Accordion title="How to maintain an array of Players in Unity?">
+    <p>You can manage a list of players in Unity to track their state and perform actions on them simultaneously. Here's how to use <a href="https://docs.joinplayroom.com/apidocs/unity#onplayerjoincallback">OnPlayerJoin</a> and <a href="https://docs.joinplayroom.com/apidocs/unity#onquitcallback">Player.OnQuit</a>:</p>
+
+    ```csharp
+    object[] players = Array.Empty<object>();
+
+    PlayroomKit.OnPlayerJoin((player) => {
+      players.push(player);
+      player.OnQuit(() => {
+        Debug.Log($"{player.id} quit!");
+        players = players.Where(p => p != player).ToArray();
+      });
+    });
+    ```
+
+    <p>This is similar to the PlayroomKit JavaScript SDK's <a href="https://docs.joinplayroom.com/apidocs/react#useplayerslisttriggeronplayerstatechange-boolean">usePlayersList hook</a>.</p>
+  </Accordion>
+
+  <Accordion title="How to do physics over the network?">
+    <h4>1. Is it possible to achieve deterministic physics in Unity for networking?</h4>
+    <p>Deterministic physics in Unity can be quite challenging to achieve due to the nature of the physics engines it uses. Unity uses <strong>PhysX</strong> for 3D physics and <strong>Box2D</strong> for 2D physics, both of which are deterministic by themselves. However, achieving determinism in a game involves more than just the physics engine being deterministic. For example, using the <strong>Rigidbody</strong> component in Unity has a property called <strong>Interpolate</strong> that affects how visuals are interpolated, which can cause differences between <code>transform.position</code> and <code>rigidbody.position</code>. This can lead to non-deterministic outcomes. For more details, you can check Unity's documentation on <a href="https://docs.unity3d.com/Manual/rigidbody-interpolation.html">Rigidbody interpolation</a>.</p>
+
+    <h4>2. What are the conditions required for deterministic physics?</h4>
+    <p>To achieve deterministic physics, all inputs (forces, impulses) must be applied to the same objects at the same time across all clients. Any delay in applying these inputs, even by one timestep, can lead to different results. This means that automatic updates of the physics engine in Unity should be disabled, and you should control these updates manually to ensure consistency. You can learn more about this in Unity's documentation on <a href="https://docs.unity3d.com/ScriptReference/Physics.Simulate.html">Physics.Simulate</a> and the article on <a href="https://gafferongames.com/post/fix_your_timestep/">Fix Your Timestep</a> by Gaffer On Games.</p>
+
+    <h4>3. What is floating-point determinism, and why is it important?</h4>
+    <p>Even if you manage to achieve deterministic physics in Unity, floating-point determinism is another hurdle. Different machines with different architectures may calculate floating-point numbers slightly differently, which can cause variations in physics simulations when networking. This can lead to desynchronization across clients. For more information, see the article on <a href="https://gafferongames.com/post/floating_point_determinism/">Floating Point Determinism</a> by Gaffer On Games.</p>
+
+    <h4>4. What approach did the developers of Soccer Party use for networking physics?</h4>
+    <p>Given the complexities of achieving deterministic physics, the developers of <a href="https://soccerparty.playroom.gg/#r=R">Soccer Party</a> decided not to rely on it. Instead, they opted to frequently send position and velocity updates for rigid bodies, and even rotation data in some cases. Their focus shifted to optimizing the size and frequency of these messages rather than ensuring deterministic physics. This approach also requires solutions for handling synchronization issues, such as what to do when objects get out of sync, how to avoid these issues, and how to prevent players from noticing them.</p>
+
+    <p>These excerpts come from conversations with an active Discord member, <strong>GuilhermeAlanJohann</strong>.</p>
+  </Accordion>
+
+  <Accordion title="Which mock mode should I use?">
+    <p>1. Start with <strong>Local mock mode</strong> for:</p>
+    <ul>
+      <li>Initial project setup</li>
+      <li>Testing new features/algorithms</li>
+      <li>Rapid iterations</li>
+    </ul>
+
+    <p>2. Progress to <strong>Browser Bridge mock mode</strong> for:</p>
+    <ul>
+      <li>Realistic testing scenarios</li>
+      <li>Multiplayer functionality</li>
+      <li>Network performance evaluation</li>
+    </ul>
+
+    <Callout type="info" emoji="ℹ️">
+      Remember that both mock modes in the Unity Editor approximate the final WebGL build. Some differences may occur due to the underlying C++ and JS compilation in the web environment.
+    </Callout>
+  </Accordion>
+</Accordions>
+
+## Aurea NetLayer: a higher level API for Unity
+
+<strong>GuilhermeAlanJohann</strong> from our Discord community has created a <a href="https://gitlab.com/PCista/com.aurea.packages.netlayer">higher level plugin</a> for Unity that makes it easier to use Playroom with Unity.
+
+<h4>Features</h4>
+<ul>
+  <li>Sync position and rotations of objects over the network (supports interpolation)</li>
+  <li>Different object authorities (Host and LocalPlayer)</li>
+  <li>Spawn/Unspawn objects over the network</li>
+  <li>Send Messages to others (including or excluding yourself)</li>
+  <li>RPC (...kind of). It uses Unity message system.</li>
+</ul>

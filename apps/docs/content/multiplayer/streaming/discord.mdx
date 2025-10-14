@@ -1,0 +1,999 @@
+---
+title: Discord Integration
+description: Integrate your multiplayer games with Discord for community engagement and seamless communication.
+---
+
+## Installation
+
+```bash
+npm install @PlayroomKit/client @PlayroomKit/discord
+```
+
+For React projects:
+```bash
+npm install @PlayroomKit/react @PlayroomKit/discord
+```
+
+## Basic Setup
+
+### Discord Bot Setup
+
+```javascript
+import { Playroom } from '@PlayroomKit/client';
+import { DiscordBot } from '@PlayroomKit/discord';
+
+class DiscordMultiplayerGame {
+  constructor() {
+    this.discordBot = null;
+    this.guildMembers = new Map();
+  }
+  
+  async init() {
+    // Initialize PlayroomKit
+    await Playroom.init('your-api-key');
+    
+    // Initialize Discord Bot
+    this.discordBot = new DiscordBot({
+      token: process.env.DISCORD_BOT_TOKEN,
+      clientId: process.env.DISCORD_CLIENT_ID,
+      guildId: process.env.DISCORD_GUILD_ID,
+      intents: ['GUILDS', 'GUILD_MESSAGES', 'GUILD_VOICE_STATES']
+    });
+    
+    await this.discordBot.init();
+    this.setupDiscordEvents();
+    this.registerSlashCommands();
+  }
+  
+  setupDiscordEvents() {
+    // Handle member joins
+    this.discordBot.on('guildMemberAdd', (member) => {
+      this.handleMemberJoin(member);
+    });
+    
+    // Handle voice state changes
+    this.discordBot.on('voiceStateUpdate', (oldState, newState) => {
+      this.handleVoiceStateChange(oldState, newState);
+    });
+    
+    // Handle game invitations
+    this.discordBot.on('interactionCreate', (interaction) => {
+      this.handleInteraction(interaction);
+    });
+  }
+}
+```
+
+### React Integration with Discord
+
+```jsx
+import { useDiscord, usePlayroomState } from '@PlayroomKit/react';
+
+function DiscordIntegratedGame() {
+  const [gameState, setGameState] = usePlayroomState('game', { phase: 'lobby' });
+  
+  const {
+    isConnected,
+    guildInfo,
+    voiceChannels,
+    onlineMembers,
+    sendMessage,
+    createInvite,
+    updateActivity
+  } = useDiscord({
+    token: process.env.DISCORD_BOT_TOKEN,
+    guildId: process.env.DISCORD_GUILD_ID
+  });
+  
+  useEffect(() => {
+    if (isConnected) {
+      // Update Discord activity status
+      updateActivity({
+        type: 'PLAYING',
+        name: 'PlayroomKit Multiplayer',
+        details: `${gameState.phase} - ${players.length} players`,
+        state: `Room: ${gameState.roomCode}`,
+        timestamps: {
+          start: Date.now()
+        }
+      });
+    }
+  }, [gameState, isConnected]);
+  
+  return (
+    <div className="discord-game">
+      <div className="game-area">
+        <MultiplayerGameComponent />
+      </div>
+      
+      <div className="discord-sidebar">
+        <GuildInfo guild={guildInfo} />
+        <OnlineMembers members={onlineMembers} />
+        <VoiceChannels channels={voiceChannels} />
+      </div>
+    </div>
+  );
+}
+```
+
+## Slash Commands
+
+### Basic Slash Commands
+
+```javascript
+class DiscordSlashCommands {
+  constructor(discordBot, gameInstance) {
+    this.bot = discordBot;
+    this.game = gameInstance;
+    this.commands = this.defineCommands();
+  }
+  
+  defineCommands() {
+    return [
+      {
+        name: 'join',
+        description: 'Join the multiplayer game',
+        options: [
+          {
+            name: 'room_code',
+            type: 'STRING',
+            description: 'Room code to join (optional)',
+            required: false
+          }
+        ]
+      },
+      {
+        name: 'create',
+        description: 'Create a new game room',
+        options: [
+          {
+            name: 'max_players',
+            type: 'INTEGER',
+            description: 'Maximum number of players',
+            required: false,
+            choices: [
+              { name: '2 players', value: 2 },
+              { name: '4 players', value: 4 },
+              { name: '8 players', value: 8 },
+              { name: '16 players', value: 16 }
+            ]
+          },
+          {
+            name: 'game_mode',
+            type: 'STRING',
+            description: 'Game mode',
+            required: false,
+            choices: [
+              { name: 'Competitive', value: 'competitive' },
+              { name: 'Cooperative', value: 'cooperative' },
+              { name: 'Casual', value: 'casual' }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'stats',
+        description: 'View your game statistics',
+        options: [
+          {
+            name: 'user',
+            type: 'USER',
+            description: 'User to view stats for',
+            required: false
+          }
+        ]
+      },
+      {
+        name: 'leaderboard',
+        description: 'View the server leaderboard',
+        options: [
+          {
+            name: 'timeframe',
+            type: 'STRING',
+            description: 'Timeframe for leaderboard',
+            required: false,
+            choices: [
+              { name: 'Today', value: 'today' },
+              { name: 'This Week', value: 'week' },
+              { name: 'This Month', value: 'month' },
+              { name: 'All Time', value: 'all' }
+            ]
+          }
+        ]
+      }
+    ];
+  }
+  
+  async registerCommands() {
+    try {
+      await this.bot.application.commands.set(this.commands);
+      console.log('Discord slash commands registered successfully');
+    } catch (error) {
+      console.error('Failed to register slash commands:', error);
+    }
+  }
+  
+  async handleInteraction(interaction) {
+    if (!interaction.isCommand()) return;
+    
+    const { commandName, options, user, guild } = interaction;
+    
+    switch (commandName) {
+      case 'join':
+        await this.handleJoinCommand(interaction);
+        break;
+      case 'create':
+        await this.handleCreateCommand(interaction);
+        break;
+      case 'stats':
+        await this.handleStatsCommand(interaction);
+        break;
+      case 'leaderboard':
+        await this.handleLeaderboardCommand(interaction);
+        break;
+    }
+  }
+  
+  async handleJoinCommand(interaction) {
+    const roomCode = interaction.options.getString('room_code');
+    
+    try {
+      let room;
+      if (roomCode) {
+        room = await Playroom.joinRoom(roomCode);
+      } else {
+        room = await Playroom.joinRandomRoom();
+      }
+      
+      const embed = {
+        color: 0x00ff00,
+        title: '🎮 Joined Game!',
+        description: `Successfully joined room: **${room.code}**`,
+        fields: [
+          { name: 'Players', value: `${room.playerCount}/${room.maxPlayers}`, inline: true },
+          { name: 'Game Mode', value: room.gameMode, inline: true },
+          { name: 'Status', value: room.status, inline: true }
+        ],
+        footer: { text: 'Good luck and have fun!' }
+      };
+      
+      await interaction.reply({ embeds: [embed] });
+      
+      // Store Discord user mapping
+      Playroom.setState(`discordUsers.${interaction.user.id}`, {
+        playerId: Playroom.getMyPlayer().id,
+        username: interaction.user.username,
+        roomCode: room.code
+      });
+      
+    } catch (error) {
+      await interaction.reply({
+        content: `❌ Failed to join game: ${error.message}`,
+        ephemeral: true
+      });
+    }
+  }
+  
+  async handleCreateCommand(interaction) {
+    const maxPlayers = interaction.options.getInteger('max_players') || 4;
+    const gameMode = interaction.options.getString('game_mode') || 'casual';
+    
+    try {
+      const room = await Playroom.createRoom({
+        maxPlayers: maxPlayers,
+        gameMode: gameMode,
+        createdBy: interaction.user.id
+      });
+      
+      const embed = {
+        color: 0x0099ff,
+        title: '🎯 Room Created!',
+        description: `Your game room is ready!`,
+        fields: [
+          { name: 'Room Code', value: `**${room.code}**`, inline: true },
+          { name: 'Max Players', value: maxPlayers.toString(), inline: true },
+          { name: 'Game Mode', value: gameMode, inline: true },
+          { name: 'Join Link', value: `[Click to Join](${room.joinUrl})`, inline: false }
+        ],
+        footer: { text: 'Share the room code with friends!' }
+      };
+      
+      await interaction.reply({ embeds: [embed] });
+      
+      // Create invite button
+      const inviteButton = {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: 5,
+            label: 'Join Game',
+            url: room.joinUrl
+          }
+        ]
+      };
+      
+      await interaction.followUp({ 
+        content: '🚀 **Invite your friends:**',
+        components: [inviteButton]
+      });
+      
+    } catch (error) {
+      await interaction.reply({
+        content: `❌ Failed to create room: ${error.message}`,
+        ephemeral: true
+      });
+    }
+  }
+}
+```
+
+## Voice Channel Integration
+
+### Voice-Based Matchmaking
+
+```javascript
+class DiscordVoiceIntegration {
+  constructor(discordBot, gameInstance) {
+    this.bot = discordBot;
+    this.game = gameInstance;
+    this.voiceRooms = new Map();
+  }
+  
+  async createVoiceRoom(interaction, roomCode) {
+    const guild = interaction.guild;
+    
+    try {
+      // Create temporary voice channel
+      const voiceChannel = await guild.channels.create(`Game Room ${roomCode}`, {
+        type: 'GUILD_VOICE',
+        parent: process.env.DISCORD_GAME_CATEGORY_ID,
+        userLimit: 8,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            allow: ['VIEW_CHANNEL', 'CONNECT', 'SPEAK']
+          }
+        ]
+      });
+      
+      // Create corresponding text channel
+      const textChannel = await guild.channels.create(`game-${roomCode.toLowerCase()}`, {
+        type: 'GUILD_TEXT',
+        parent: process.env.DISCORD_GAME_CATEGORY_ID,
+        topic: `Text chat for game room ${roomCode}`,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            allow: ['VIEW_CHANNEL', 'SEND_MESSAGES', 'READ_MESSAGE_HISTORY']
+          }
+        ]
+      });
+      
+      this.voiceRooms.set(roomCode, {
+        voiceChannel: voiceChannel,
+        textChannel: textChannel,
+        createdAt: Date.now(),
+        players: new Set()
+      });
+      
+      // Auto-delete channels after 1 hour of inactivity
+      setTimeout(() => {
+        this.cleanupVoiceRoom(roomCode);
+      }, 3600000);
+      
+      return { voiceChannel, textChannel };
+      
+    } catch (error) {
+      console.error('Failed to create voice room:', error);
+      throw error;
+    }
+  }
+  
+  async handleVoiceStateChange(oldState, newState) {
+    const member = newState.member;
+    
+    // Check if joining a game voice channel
+    if (newState.channel && newState.channel.name.startsWith('Game Room')) {
+      const roomCode = newState.channel.name.split(' ')[2];
+      const voiceRoom = this.voiceRooms.get(roomCode);
+      
+      if (voiceRoom) {
+        voiceRoom.players.add(member.id);
+        
+        // Auto-join the game if connected to voice
+        try {
+          const room = await Playroom.joinRoom(roomCode);
+          
+          // Send welcome message in text channel
+          await voiceRoom.textChannel.send({
+            content: `🎮 ${member.displayName} joined the voice channel and game!`,
+            embeds: [{
+              color: 0x00ff00,
+              description: `Welcome to room **${roomCode}**!\nPlayers: ${voiceRoom.players.size}/${room.maxPlayers}`
+            }]
+          });
+          
+        } catch (error) {
+          await voiceRoom.textChannel.send({
+            content: `❌ ${member.displayName} joined voice but couldn't join the game: ${error.message}`
+          });
+        }
+      }
+    }
+    
+    // Handle leaving voice channel
+    if (oldState.channel && oldState.channel.name.startsWith('Game Room')) {
+      const roomCode = oldState.channel.name.split(' ')[2];
+      const voiceRoom = this.voiceRooms.get(roomCode);
+      
+      if (voiceRoom) {
+        voiceRoom.players.delete(member.id);
+        
+        // Auto-leave game
+        Playroom.leaveRoom();
+        
+        await voiceRoom.textChannel.send({
+          content: `👋 ${member.displayName} left the voice channel and game.`
+        });
+        
+        // Clean up if empty
+        if (voiceRoom.players.size === 0) {
+          setTimeout(() => {
+            if (voiceRoom.players.size === 0) {
+              this.cleanupVoiceRoom(roomCode);
+            }
+          }, 300000); // 5 minutes grace period
+        }
+      }
+    }
+  }
+  
+  async cleanupVoiceRoom(roomCode) {
+    const voiceRoom = this.voiceRooms.get(roomCode);
+    
+    if (voiceRoom) {
+      try {
+        await voiceRoom.voiceChannel.delete('Game ended');
+        await voiceRoom.textChannel.delete('Game ended');
+        this.voiceRooms.delete(roomCode);
+        console.log(`Cleaned up voice room for ${roomCode}`);
+      } catch (error) {
+        console.error(`Failed to cleanup voice room ${roomCode}:`, error);
+      }
+    }
+  }
+}
+```
+
+## Rich Presence and Activities
+
+### Discord Rich Presence
+
+```javascript
+class DiscordRichPresence {
+  constructor(discordBot) {
+    this.bot = discordBot;
+    this.presenceData = null;
+  }
+  
+  updateGameActivity(gameState) {
+    const activity = {
+      type: 'PLAYING',
+      name: 'PlayroomKit',
+      details: this.getGameDetails(gameState),
+      state: this.getGameState(gameState),
+      timestamps: {
+        start: gameState.startTime || Date.now()
+      },
+      assets: {
+        large_image: 'PlayroomKit_logo',
+        large_text: 'PlayroomKit - Multiplayer Games',
+        small_image: this.getGameModeIcon(gameState.gameMode),
+        small_text: gameState.gameMode
+      },
+      party: {
+        id: gameState.roomCode,
+        size: [gameState.playerCount, gameState.maxPlayers]
+      },
+      buttons: [
+        {
+          label: 'Join Game',
+          url: gameState.joinUrl
+        },
+        {
+          label: 'Visit PlayroomKit',
+          url: 'https://PlayroomKit.com'
+        }
+      ]
+    };
+    
+    this.bot.user.setActivity(activity);
+    this.presenceData = activity;
+  }
+  
+  getGameDetails(gameState) {
+    switch (gameState.phase) {
+      case 'lobby':
+        return 'In Lobby';
+      case 'playing':
+        return `Playing ${gameState.gameMode}`;
+      case 'finished':
+        return 'Game Finished';
+      default:
+        return 'In Game';
+    }
+  }
+  
+  getGameState(gameState) {
+    return `Room ${gameState.roomCode} • ${gameState.playerCount}/${gameState.maxPlayers} players`;
+  }
+  
+  getGameModeIcon(gameMode) {
+    const icons = {
+      competitive: 'competitive_icon',
+      cooperative: 'cooperative_icon',
+      casual: 'casual_icon',
+      tournament: 'tournament_icon'
+    };
+    
+    return icons[gameMode] || 'default_icon';
+  }
+}
+```
+
+## Server Management
+
+### Discord Server Commands
+
+```javascript
+class DiscordServerManagement {
+  constructor(discordBot) {
+    this.bot = discordBot;
+    this.serverStats = new Map();
+  }
+  
+  async createGameCategory() {
+    const guild = this.bot.guilds.cache.first();
+    
+    try {
+      const category = await guild.channels.create('🎮 ACTIVE GAMES', {
+        type: 'GUILD_CATEGORY',
+        position: 1
+      });
+      
+      return category;
+    } catch (error) {
+      console.error('Failed to create game category:', error);
+    }
+  }
+  
+  async setupServerStats(guild) {
+    try {
+      // Create stats channels
+      const statsCategory = await guild.channels.create('📊 SERVER STATS', {
+        type: 'GUILD_CATEGORY'
+      });
+      
+      const totalPlayersChannel = await guild.channels.create('👥 Total Players: 0', {
+        type: 'GUILD_VOICE',
+        parent: statsCategory,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            deny: ['CONNECT']
+          }
+        ]
+      });
+      
+      const activeGamesChannel = await guild.channels.create('🎮 Active Games: 0', {
+        type: 'GUILD_VOICE',
+        parent: statsCategory,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            deny: ['CONNECT']
+          }
+        ]
+      });
+      
+      const onlineMembersChannel = await guild.channels.create('🟢 Online: 0', {
+        type: 'GUILD_VOICE',
+        parent: statsCategory,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            deny: ['CONNECT']
+          }
+        ]
+      });
+      
+      // Store channel IDs for updates
+      this.serverStats.set(guild.id, {
+        totalPlayers: totalPlayersChannel.id,
+        activeGames: activeGamesChannel.id,
+        onlineMembers: onlineMembersChannel.id
+      });
+      
+      // Update stats every 5 minutes
+      setInterval(() => {
+        this.updateServerStats(guild);
+      }, 300000);
+      
+    } catch (error) {
+      console.error('Failed to setup server stats:', error);
+    }
+  }
+  
+  async updateServerStats(guild) {
+    const stats = this.serverStats.get(guild.id);
+    if (!stats) return;
+    
+    try {
+      // Get current game statistics
+      const gameStats = await Playroom.getServerStats();
+      const onlineMembers = guild.members.cache.filter(m => 
+        m.presence?.status !== 'offline' && !m.user.bot
+      ).size;
+      
+      // Update channel names
+      const totalPlayersChannel = guild.channels.cache.get(stats.totalPlayers);
+      const activeGamesChannel = guild.channels.cache.get(stats.activeGames);
+      const onlineMembersChannel = guild.channels.cache.get(stats.onlineMembers);
+      
+      if (totalPlayersChannel) {
+        await totalPlayersChannel.setName(`👥 Total Players: ${gameStats.totalPlayers}`);
+      }
+      
+      if (activeGamesChannel) {
+        await activeGamesChannel.setName(`🎮 Active Games: ${gameStats.activeRooms}`);
+      }
+      
+      if (onlineMembersChannel) {
+        await onlineMembersChannel.setName(`🟢 Online: ${onlineMembers}`);
+      }
+      
+    } catch (error) {
+      console.error('Failed to update server stats:', error);
+    }
+  }
+}
+```
+
+## Notifications and Events
+
+### Game Event Notifications
+
+```javascript
+class DiscordNotifications {
+  constructor(discordBot) {
+    this.bot = discordBot;
+    this.notificationChannels = new Map();
+  }
+  
+  async setupNotifications(guildId, channelId) {
+    const channel = this.bot.channels.cache.get(channelId);
+    if (channel) {
+      this.notificationChannels.set(guildId, channel);
+    }
+  }
+  
+  async sendGameNotification(type, data) {
+    const embeds = this.createNotificationEmbed(type, data);
+    
+    this.notificationChannels.forEach(async (channel) => {
+      try {
+        await channel.send({ embeds: [embeds] });
+      } catch (error) {
+        console.error('Failed to send notification:', error);
+      }
+    });
+  }
+  
+  createNotificationEmbed(type, data) {
+    const baseEmbed = {
+      timestamp: new Date().toISOString(),
+      footer: { text: 'PlayroomKit' }
+    };
+    
+    switch (type) {
+      case 'tournament_start':
+        return {
+          ...baseEmbed,
+          color: 0xff6b35,
+          title: '🏆 Tournament Starting!',
+          description: `**${data.tournamentName}** is about to begin!`,
+          fields: [
+            { name: 'Prize Pool', value: data.prizePool, inline: true },
+            { name: 'Participants', value: data.participants, inline: true },
+            { name: 'Game Mode', value: data.gameMode, inline: true }
+          ],
+          image: { url: data.bannerUrl }
+        };
+        
+      case 'new_record':
+        return {
+          ...baseEmbed,
+          color: 0xffd700,
+          title: '🎉 New Record Set!',
+          description: `**${data.playerName}** just set a new ${data.recordType} record!`,
+          fields: [
+            { name: 'Previous Record', value: data.previousRecord, inline: true },
+            { name: 'New Record', value: data.newRecord, inline: true },
+            { name: 'Improvement', value: data.improvement, inline: true }
+          ]
+        };
+        
+      case 'server_milestone':
+        return {
+          ...baseEmbed,
+          color: 0x9146ff,
+          title: '🎯 Server Milestone!',
+          description: `We've reached ${data.milestone}!`,
+          fields: [
+            { name: 'Achievement', value: data.description, inline: false },
+            { name: 'Total Games Played', value: data.totalGames, inline: true },
+            { name: 'Active Players', value: data.activePlayers, inline: true }
+          ]
+        };
+        
+      case 'weekly_leaderboard':
+        return {
+          ...baseEmbed,
+          color: 0x00d4aa,
+          title: '📊 Weekly Leaderboard',
+          description: 'Here are this week\'s top players!',
+          fields: data.topPlayers.map((player, index) => ({
+            name: `${index + 1}. ${player.name}`,
+            value: `Score: ${player.score} | Games: ${player.games}`,
+            inline: false
+          }))
+        };
+        
+      default:
+        return baseEmbed;
+    }
+  }
+}
+```
+
+## Moderation and Administration
+
+### Discord Bot Moderation
+
+```javascript
+class DiscordModeration {
+  constructor(discordBot) {
+    this.bot = discordBot;
+    this.moderatorRoles = ['Admin', 'Moderator', 'Game Master'];
+    this.bannedUsers = new Set();
+  }
+  
+  isModeratorr(member) {
+    return member.roles.cache.some(role => 
+      this.moderatorRoles.includes(role.name)
+    );
+  }
+  
+  async handleModerationCommand(interaction) {
+    if (!this.isModerator(interaction.member)) {
+      await interaction.reply({
+        content: '❌ You do not have permission to use this command.',
+        ephemeral: true
+      });
+      return;
+    }
+    
+    const subcommand = interaction.options.getSubcommand();
+    
+    switch (subcommand) {
+      case 'ban':
+        await this.handleBanCommand(interaction);
+        break;
+      case 'unban':
+        await this.handleUnbanCommand(interaction);
+        break;
+      case 'kick':
+        await this.handleKickCommand(interaction);
+        break;
+      case 'warn':
+        await this.handleWarnCommand(interaction);
+        break;
+    }
+  }
+  
+  async handleBanCommand(interaction) {
+    const user = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    
+    try {
+      // Ban from Discord server
+      await interaction.guild.members.ban(user, { reason });
+      
+      // Ban from game servers
+      await Playroom.banUser(user.id, reason);
+      this.bannedUsers.add(user.id);
+      
+      const embed = {
+        color: 0xff0000,
+        title: '🔨 User Banned',
+        fields: [
+          { name: 'User', value: `${user.tag} (${user.id})`, inline: true },
+          { name: 'Moderator', value: interaction.user.tag, inline: true },
+          { name: 'Reason', value: reason, inline: false }
+        ],
+        timestamp: new Date().toISOString()
+      };
+      
+      await interaction.reply({ embeds: [embed] });
+      
+    } catch (error) {
+      await interaction.reply({
+        content: `❌ Failed to ban user: ${error.message}`,
+        ephemeral: true
+      });
+    }
+  }
+  
+  async logModerationAction(action, moderator, target, reason) {
+    const logChannel = this.bot.channels.cache.find(
+      channel => channel.name === 'mod-logs'
+    );
+    
+    if (logChannel) {
+      const embed = {
+        color: this.getModerationColor(action),
+        title: `🛡️ Moderation Action: ${action.toUpperCase()}`,
+        fields: [
+          { name: 'Target', value: target.tag, inline: true },
+          { name: 'Moderator', value: moderator.tag, inline: true },
+          { name: 'Reason', value: reason, inline: false }
+        ],
+        timestamp: new Date().toISOString()
+      };
+      
+      await logChannel.send({ embeds: [embed] });
+    }
+  }
+  
+  getModerationColor(action) {
+    const colors = {
+      ban: 0xff0000,
+      kick: 0xff6600,
+      warn: 0xffff00,
+      unban: 0x00ff00
+    };
+    
+    return colors[action] || 0x888888;
+  }
+}
+```
+
+## Best Practices
+
+### Performance and Rate Limiting
+
+```javascript
+class DiscordOptimization {
+  constructor() {
+    this.messageQueue = [];
+    this.rateLimits = new Map();
+  }
+  
+  // Rate limit Discord API calls
+  async sendMessage(channel, content, options = {}) {
+    const channelId = channel.id;
+    const now = Date.now();
+    
+    // Check rate limit
+    const lastMessage = this.rateLimits.get(channelId) || 0;
+    const minInterval = 1000; // 1 second between messages
+    
+    if (now - lastMessage < minInterval) {
+      // Queue the message
+      this.messageQueue.push({
+        channel,
+        content,
+        options,
+        timestamp: now
+      });
+      return;
+    }
+    
+    try {
+      await channel.send(content, options);
+      this.rateLimits.set(channelId, now);
+    } catch (error) {
+      console.error('Failed to send Discord message:', error);
+    }
+  }
+  
+  // Process queued messages
+  processMessageQueue() {
+    const now = Date.now();
+    const readyMessages = this.messageQueue.filter(msg => 
+      now - msg.timestamp >= 1000
+    );
+    
+    readyMessages.forEach(async (msg) => {
+      await this.sendMessage(msg.channel, msg.content, msg.options);
+    });
+    
+    this.messageQueue = this.messageQueue.filter(msg => 
+      !readyMessages.includes(msg)
+    );
+  }
+}
+```
+
+### Security Best Practices
+
+```javascript
+// Environment variable validation
+function validateDiscordConfig() {
+  const required = [
+    'DISCORD_BOT_TOKEN',
+    'DISCORD_CLIENT_ID',
+    'DISCORD_GUILD_ID'
+  ];
+  
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing Discord environment variables: ${missing.join(', ')}`);
+  }
+}
+
+// Sanitize user input
+function sanitizeDiscordInput(input) {
+  if (typeof input !== 'string') return input;
+  
+  return input
+    .replace(/[<@&>]/g, '') // Remove mention characters
+    .slice(0, 2000); // Discord message limit
+}
+
+// Validate permissions
+function hasPermission(member, permission) {
+  return member.permissions.has(permission) || 
+         member.roles.cache.some(role => 
+           role.permissions.has(permission)
+         );
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Bot not responding to commands:**
+```javascript
+// Check bot permissions
+if (!interaction.guild.me.permissions.has('SEND_MESSAGES')) {
+  console.error('Bot lacks SEND_MESSAGES permission');
+}
+
+// Verify bot is online
+console.log('Bot status:', this.bot.presence.status);
+```
+
+**Voice channel issues:**
+```javascript
+// Check voice permissions
+const voiceChannel = member.voice.channel;
+if (voiceChannel) {
+  const permissions = voiceChannel.permissionsFor(this.bot.user);
+  if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
+    console.error('Bot lacks voice permissions');
+  }
+}
+```
+
+**Rate limit errors:**
+```javascript
+// Handle rate limits gracefully
+this.bot.on('rateLimit', (info) => {
+  console.warn('Rate limit hit:', info);
+  // Implement exponential backoff
+});
+```

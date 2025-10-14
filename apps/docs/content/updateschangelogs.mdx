@@ -1,0 +1,134 @@
+---
+title: Updates & Changelogs
+description: Latest updates, features, and changelogs for PlayroomKit.
+---
+
+# Updates & Changelogs
+
+
+Stay up to date with the latest PlayroomKit features, improvements, and bug fixes.
+
+## Latest Updates
+
+### v2.1.0 - December 2024
+**New Features:**
+- ✨ React Three Fiber integration
+- ✨ Advanced lobby templates
+- ✨ Voice chat improvements
+- ✨ Mobile SDK optimizations
+
+**Improvements:**
+- 🚀 50% faster state synchronization
+- 🚀 Reduced bandwidth usage
+- 🚀 Better error handling
+- 🚀 Improved documentation
+
+**Bug Fixes:**
+- 🐛 Fixed disconnection issues on mobile
+- 🐛 Resolved state conflicts in rapid updates
+- 🐛 Fixed memory leaks in long sessions
+
+### v2.0.0 - November 2024
+**Breaking Changes:**
+- 🔥 New authentication system
+- 🔥 Updated API endpoints
+- 🔥 Simplified SDK initialization
+
+**New Features:**
+- ✨ Server-side validation
+- ✨ Anti-cheat tools
+- ✨ Advanced analytics
+- ✨ Custom server regions
+
+**Migration Guide:**
+See our [migration guide](/docs/migration-v2) for upgrading from v1.x
+
+### v1.8.5 - October 2024
+**Improvements:**
+- 🚀 Better Unity integration
+- 🚀 Improved TypeScript definitions
+- 🚀 Enhanced error messages
+
+**Bug Fixes:**
+- 🐛 Fixed lobby creation race conditions
+- 🐛 Resolved player state sync issues
+
+## Upcoming Features
+
+### Q1 2025 Roadmap
+- 🔮 AI-powered matchmaking
+- 🔮 Blockchain integration
+- 🔮 Advanced spectator tools
+- 🔮 Cross-platform achievements
+
+### In Development
+- 🚧 Real-time voice translation
+- 🚧 Enhanced mobile controls
+- 🚧 Improved analytics dashboard
+- 🚧 Custom game modes
+
+## Feature Requests
+
+Have an idea for a new feature? We'd love to hear from you!
+
+- 💡 Submit feature requests on [GitHub](https://github.com/PlayroomKit/feedback)
+- 💡 Vote on existing requests
+- 💡 Join our [Discord](https://discord.gg/PlayroomKit) for discussions
+
+## Breaking Changes
+
+### v2.0.0 Breaking Changes
+
+#### Authentication Changes
+```javascript
+// Old way (v1.x)
+Playroom.init('api-key');
+
+// New way (v2.x)
+Playroom.init({
+  apiKey: 'api-key',
+  authMode: 'anonymous' // or 'authenticated'
+});
+```
+
+#### State Management Changes
+```javascript
+// Old way (v1.x)
+Playroom.setState('key', value, true); // persistent flag
+
+// New way (v2.x)
+Playroom.setState('key', value, { persistent: true });
+```
+
+## Release Schedule
+
+- **Major releases** - Every 6 months
+- **Minor releases** - Monthly
+- **Patch releases** - As needed
+- **Security updates** - Immediately
+
+## Subscribe to Updates
+
+Stay informed about new releases:
+
+- 📧 [Email newsletter](https://PlayroomKit.com/newsletter)
+- 📱 [RSS feed](https://PlayroomKit.com/releases.rss)
+- 🐦 [Twitter updates](https://twitter.com/PlayroomKit)
+- 💬 [Discord announcements](https://discord.gg/PlayroomKit)
+
+## Deprecation Policy
+
+We follow a clear deprecation timeline:
+
+1. **Feature marked deprecated** - Continue working, warnings added
+2. **6 months notice** - Feature remains functional
+3. **Migration guide released** - Help transition to new approach
+4. **Feature removed** - No longer available
+
+## Support for Older Versions
+
+- **Current version** - Full support and updates
+- **Previous version** - Security updates only
+- **Older versions** - Best effort support
+
+For mission-critical applications, consider our [Enterprise plan](/docs/billing) with extended support. 

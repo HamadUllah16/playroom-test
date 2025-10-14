@@ -1,0 +1,103 @@
+.container{
+    overflow-x: hidden;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, 395px);
+    margin: 15px 0px;
+  }
+  .browser {
+    font-size: 18px;
+    margin: 15px 0px;
+    margin: 0.5rem;
+      padding: 2.1em 0 0 0;
+      border-radius: 1em;
+      background: #000;
+      display: inline-block;
+      position: relative;
+    overflow: hidden;
+    box-shadow: 0 0.25em 0.9em -0.1em rgba(0,0,0,.3);
+  }
+  
+  .browser .browserNavigationBar {
+      display: block;
+    box-sizing: border-box;
+      height: 2.1em;
+      position: absolute;
+      top: 0;
+    padding: 0.3em;
+    width: 100%;
+  }
+   
+  .browser i {
+    display: inline-block;
+      height: 0.7em;
+      width: 0.7em;
+      border-radius: 0.45em;
+      background-color: #eee;
+      margin: 0.4em 0.15em;
+  }
+  
+  .browser i:nth-child(1) {background-color: rgb(255, 86, 79)}
+  
+  .browser i:nth-child(1):hover {background-color: rgb(255, 20, 25)}
+  
+  .browser i:nth-child(2) {background-color: rgb(255, 183, 42)}
+  
+  .browser i:nth-child(2):hover {background-color: rgb(230, 175, 42)}
+  
+  .browser i:nth-child(3) {background-color: rgb(37, 198, 58)}
+  
+  .browser i:nth-child(3):hover {background-color: rgb(10, 225, 10)}
+  
+  .browser input {
+    font-size: 0.75em;
+    vertical-align: top;
+    display: inline-block;
+      height: 1.6em;
+    color: #aaa;
+      width: calc(100% - 6em);
+    border: 0.1em solid #E1E1E1;
+      border-radius: 0.25em;
+      background-color: #eee;
+    margin: 0.1em;
+    padding: 0 0.4em;
+  }
+  
+  .browserContainer {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    
+    text-align: center;
+  }
+  
+  .btnNew{
+    display: block;
+    width: 325px;
+    max-width: 100vw;
+    padding: 20px 10px;
+    border: 1px dashed hsl(var(--nextra-primary-hue)100% 45%/var(--tw-text-opacity));
+    color:#FFA6F1;
+    font-size: 1.25rem;
+    font-weight: 500;
+    border-radius: 1rem;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .newWindowCTA{
+    background: url(./previewlobby.png) no-repeat center center;
+    background-size: cover;
+  }
+  
+  .newWindowCTA a{
+    padding: 310px 0px;
+    display: block;
+    backdrop-filter: blur(12px) brightness(0.3);
+    text-shadow: 1px 1px black;
+    font-weight: bold;
+  }

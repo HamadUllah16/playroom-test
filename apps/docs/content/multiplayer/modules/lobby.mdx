@@ -1,0 +1,263 @@
+---
+title: Lobby System
+description: Create and manage game lobbies with PlayroomKit's lobby system.
+---
+
+# Lobby System
+
+The lobby system allows players to gather before starting a game, chat, and configure game settings.
+
+## Creating a Lobby
+
+```javascript
+const lobby = await Playroom.createLobby({
+    name: "My Game Lobby",
+    maxPlayers: 8,
+    isPrivate: false,
+    gameMode: "battle-royale"
+});
+```
+
+## Lobby Configuration
+
+```javascript
+const lobbyOptions = {
+    name: "Epic Battle Arena",           // Lobby display name
+    maxPlayers: 16,                      // Maximum players allowed
+    isPrivate: false,                    // Public or private lobby
+    password: "secret123",               // Password for private lobbies
+    gameMode: "team-deathmatch",         // Game mode identifier
+    map: "desert_storm",                 // Map selection
+    allowSpectators: true,               // Allow spectators
+    autoStart: false,                    // Auto-start when full
+    customSettings: {                    // Custom game settings
+        roundTime: 300,
+        respawnTime: 5,
+        friendlyFire: false
+    }
+};
+
+const lobby = await Playroom.createLobby(lobbyOptions);
+```
+
+## Lobby Features
+
+- **Player management** - Add/remove players, set host
+- **Chat system** - Built-in text and voice chat
+- **Game configuration** - Set game modes, maps, rules
+- **Ready system** - Players can mark themselves as ready
+- **Spectator support** - Allow viewers to watch
+- **Custom settings** - Game-specific configurations
+
+## Lobby Events
+
+```javascript
+// Player joins lobby
+Playroom.onLobbyPlayerJoin((player) => {
+    console.log(`${player.name} joined the lobby`);
+    updatePlayerList();
+});
+
+// Player leaves lobby
+Playroom.onLobbyPlayerLeave((player) => {
+    console.log(`${player.name} left the lobby`);
+    updatePlayerList();
+});
+
+// Player ready state changes
+Playroom.onPlayerReady((player, isReady) => {
+    console.log(`${player.name} is ${isReady ? 'ready' : 'not ready'}`);
+    updateReadyStatus();
+});
+
+// Host changes
+Playroom.onHostChange((newHost) => {
+    console.log(`${newHost.name} is now the host`);
+    updateHostControls();
+});
+
+// Lobby settings change
+Playroom.onLobbySettingsChange((settings) => {
+    console.log('Lobby settings updated:', settings);
+    updateSettingsDisplay();
+});
+```
+
+## Player Ready System
+
+```javascript
+// Mark player as ready
+await Playroom.setPlayerReady(true);
+
+// Check if all players are ready
+const allReady = Playroom.areAllPlayersReady();
+
+// Get ready player count
+const readyCount = Playroom.getReadyPlayerCount();
+
+// Force ready state (host only)
+await Playroom.setPlayerReady(playerId, true);
+```
+
+## Chat System
+
+```javascript
+// Send chat message
+Playroom.sendChatMessage("Hello everyone!");
+
+// Send team chat (if teams enabled)
+Playroom.sendTeamChatMessage("Ready to go!", "red");
+
+// Listen for chat messages
+Playroom.onChatMessage((message, sender) => {
+    displayChatMessage(sender.name, message);
+});
+
+// Moderate chat (host only)
+Playroom.muteChatPlayer(playerId, true);
+Playroom.clearChatHistory();
+```
+
+## Team Management
+
+```javascript
+// Enable team mode
+await Playroom.enableTeams({
+    teams: ['red', 'blue'],
+    maxPlayersPerTeam: 4,
+    autoBalance: true
+});
+
+// Assign player to team
+await Playroom.assignPlayerToTeam(playerId, 'red');
+
+// Get team players
+const redTeam = Playroom.getTeamPlayers('red');
+const blueTeam = Playroom.getTeamPlayers('blue');
+
+// Balance teams automatically
+await Playroom.balanceTeams();
+```
+
+## Starting the Game
+
+```javascript
+// Check if lobby can start
+if (lobby.canStartGame()) {
+    // Start the game
+    const gameRoom = await lobby.startGame();
+    console.log(`Game started in room: ${gameRoom.id}`);
+    
+    // Transition all players to game
+    Playroom.transitionToGame(gameRoom.id);
+}
+
+// Auto-start when conditions met
+Playroom.setAutoStartConditions({
+    minPlayers: 2,
+    maxWaitTime: 30000,  // 30 seconds
+    requireAllReady: true
+});
+```
+
+## React Integration
+
+```jsx
+import { useLobby, usePlayer } from '@PlayroomKit/react';
+
+function LobbyScreen() {
+    const { 
+        lobby, 
+        players, 
+        isHost, 
+        allReady,
+        canStart 
+    } = useLobby();
+    
+    const { isReady, setReady } = usePlayer();
+    
+    return (
+        <div className="lobby">
+            <h2>{lobby.name}</h2>
+            <p>Players: {players.length}/{lobby.maxPlayers}</p>
+            
+            <div className="players">
+                {players.map(player => (
+                    <div key={player.id} className="player">
+                        {player.name}
+                        {player.isHost && ' 👑'}
+                        {player.getState('ready') && ' ✅'}
+                    </div>
+                ))}
+            </div>
+            
+            <div className="controls">
+                <button 
+                    onClick={() => setReady(!isReady)}
+                    className={isReady ? 'ready' : 'not-ready'}
+                >
+                    {isReady ? 'Ready' : 'Not Ready'}
+                </button>
+                
+                {isHost && (
+                    <button 
+                        onClick={() => lobby.startGame()}
+                        disabled={!canStart}
+                    >
+                        Start Game
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+```
+
+## Advanced Features
+
+### Spectator Mode
+
+```javascript
+// Enable spectators
+await Playroom.enableSpectators({
+    maxSpectators: 10,
+    allowSpectatorChat: true
+});
+
+// Join as spectator
+await Playroom.joinAsSpectator(lobbyCode);
+
+// Promote spectator to player
+await Playroom.promoteSpectator(spectatorId);
+```
+
+### Lobby Templates
+
+```javascript
+// Save lobby as template
+await Playroom.saveLobbyTemplate('my-template', lobby.settings);
+
+// Load lobby from template
+const lobby = await Playroom.createLobbyFromTemplate('my-template');
+
+// List available templates
+const templates = await Playroom.getLobbyTemplates();
+```
+
+### Private Lobbies
+
+```javascript
+// Create private lobby with password
+const privateLobby = await Playroom.createLobby({
+    isPrivate: true,
+    password: "mypassword123",
+    inviteOnly: true
+});
+
+// Send invitations
+await Playroom.invitePlayer("player@example.com");
+await Playroom.invitePlayerById("player-id-123");
+
+// Join private lobby
+await Playroom.joinPrivateLobby(lobbyCode, "mypassword123");
+``` 

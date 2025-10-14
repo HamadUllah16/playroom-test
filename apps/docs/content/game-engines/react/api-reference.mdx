@@ -1,0 +1,132 @@
+---
+title: API Reference (Unity)
+description: PlayroomKit provides a powerful C# API for building multiplayer games with Unity.
+---
+
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+## `InsertCoin(InitOptions, callback)`
+
+Initializes Playroom and handles room creation, player joining, and player customization.
+
+```cs
+PlayroomKit.InsertCoin(new PlayroomKit.InitOptions()
+{
+  maxPlayersPerRoom = 2,
+  defaultPlayerStates = new() {
+    {"score", -500},
+  },
+}, () => Debug.Log("Game started!"));
+```
+
+<TypeTable
+  type={{
+    Parameters: {
+      type: "object",
+      description: "Function parameters",
+      properties: {
+        InitOptions: {
+          type: "InitOptions",
+          description: "Configuration object for game initialization"
+        },
+        callback: {
+          type: "Action",
+          description: "Executes when host launches game"
+        }
+      }
+    },
+    InitOptions: {
+      type: "object",
+      description: "Initialization configuration",
+      properties: {
+        gameId: {
+          type: "string",
+          default: "undefined",
+          description: "Game ID from Playroom portal"
+        },
+        streamMode: {
+          type: "bool",
+          default: "false",
+          description: "Enables stream mode"
+        },
+        maxPlayersPerRoom: {
+          type: "int",
+          description: "Maximum player capacity"
+        }
+      }
+    }
+  }}
+/>
+
+## `GetState<T>(string key)`
+
+Retrieves the current value of a game state key.
+
+```cs
+string winner = PlayroomKit.GetState<string>("winner");
+```
+
+<TypeTable
+  type={{
+    Generic: {
+      type: "T",
+      description: "Return type (specify when calling)"
+    },
+    Parameters: {
+      type: "object",
+      properties: {
+        key: {
+          type: "string",
+          description: "State key to retrieve"
+        }
+      }
+    },
+    Returns: {
+      type: "T",
+      description: "Value of the specified state"
+    }
+  }}
+/>
+
+## PlayroomKit.Player
+
+Represents a player in the room.
+
+<TypeTable
+  type={{
+    Methods: {
+      type: "object",
+      properties: {
+        GetProfile: {
+          type: "PlayroomKit.Player.Profile",
+          description: "Returns player profile data"
+        },
+        SetState: {
+          type: "void",
+          description: "Sets player state value",
+          parameters: {
+            key: "string",
+            value: "T",
+            reliable: {
+              type: "bool",
+              default: "false"
+            }
+          }
+        }
+      }
+    },
+    Profile: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Player's display name"
+        },
+        color: {
+          type: "UnityEngine.Color",
+          description: "Player's chosen color"
+        }
+      }
+    }
+  }}
+/>

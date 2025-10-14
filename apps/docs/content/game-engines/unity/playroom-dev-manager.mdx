@@ -1,0 +1,34 @@
+---
+title: Playroom Dev Manager
+description: Multi-instance testing and mock mode for PlayroomKit Unity plugin.
+---
+
+import Image from 'next/image';
+
+The PlayroomKit for Unity plugin includes a "Playroom Dev Manager" panel for multi-instance testing and ease-of-use, which controls two features:
+1. [Mock Mode](./mock-mode)
+2. [Multiple player testing](./multiple-player-testing)
+
+![Playroom Dev Manager](/images/playroom-dev-manager.png)
+
+#### Video Tutorial
+<br />
+<iframe style={{width: '100%', maxWidth: '80vw'}} height="400" src="https://www.youtube.com/embed/0zyYW7Q2ZI8?si=cSr5z-t0335GlOCy" title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; muted" allowFullScreen autoPlay muted></iframe>
+
+#### Getting started with the Playroom Dev Manager
+
+PlayroomKit for Unity, when installed in your project, comes with a prefab called **PlayroomMockManager**. This is available inside the **PlayroomKit/Prefabs** folder.
+
+Just **drag-and-drop** it into your scene. It should have two entries.
+
+<br />
+![Access-the-playroom-Mock-manager](/images/playroommockmanager.png)
+When you select **"PlayroomMockManager"**, you'll see the Playroom Dev Manager panel on the right. Here, you can:
+
+1. Set the **Insert Coin Caller**. This is required for Playroom Dev Manager to work correctly. The "Insert Coin Caller" is simply the GameObject where InsertCoin is called in your game.
+2. Choose your **Mock mode**. Learn more about it [here](./mock-mode).
+3. Launch multiple players. This currently works best with Browser Bridge mock mode. More on it [here](./multiple-player-testing).
+
+<br />
+
+![Access-the-playroom-dev-manager](/images/accesstheplayroomdevmanager.png)

@@ -1,0 +1,517 @@
+---
+title: Node.js
+description: Build multiplayer game servers with Node.js and PlayroomKit.
+---
+
+# Node.js Integration
+
+Use PlayroomKit with Node.js to create powerful game servers, handle server-side logic, and manage multiplayer game sessions.
+
+## Installation
+
+```bash
+npm install @PlayroomKit/node
+```
+
+## Server Setup
+
+### Basic Express Server
+
+```javascript
+const express = require('express');
+const { PlayroomServer } = require('@PlayroomKit/node');
+
+const app = express();
+const playroomServer = new PlayroomServer({
+  apiKey: process.env.PlayroomKit_API_KEY,
+  secret: process.env.PlayroomKit_SECRET
+});
+
+app.use(express.json());
+
+// Initialize PlayroomKit middleware
+app.use('/api/playroom', playroomServer.middleware());
+
+app.listen(3000, () => {
+  console.log('Game server running on port 3000');
+});
+```
+
+### WebSocket Server
+
+```javascript
+const WebSocket = require('ws');
+const { PlayroomServer } = require('@PlayroomKit/node');
+
+const wss = new WebSocket.Server({ port: 8080 });
+const playroomServer = new PlayroomServer({
+  apiKey: process.env.PlayroomKit_API_KEY,
+  secret: process.env.PlayroomKit_SECRET
+});
+
+wss.on('connection', async (ws) => {
+  // Authenticate player
+  const player = await playroomServer.authenticatePlayer(ws.upgradeReq);
+  
+  // Join room
+  const room = await playroomServer.joinRoom(player.id, 'game-room');
+  
+  // Handle messages
+  ws.on('message', async (data) => {
+    const message = JSON.parse(data);
+    await playroomServer.handleMessage(player.id, message);
+  });
+  
+  // Handle disconnect
+  ws.on('close', async () => {
+    await playroomServer.playerDisconnected(player.id);
+  });
+});
+```
+
+## Room Management
+
+### Creating Rooms
+
+```javascript
+const { PlayroomServer } = require('@PlayroomKit/node');
+
+const playroomServer = new PlayroomServer({
+  apiKey: process.env.PlayroomKit_API_KEY,
+  secret: process.env.PlayroomKit_SECRET
+});
+
+// Create a new room
+async function createGameRoom(roomConfig) {
+  const room = await playroomServer.createRoom({
+    name: roomConfig.name,
+    maxPlayers: roomConfig.maxPlayers,
+    gameMode: roomConfig.gameMode,
+    isPrivate: roomConfig.isPrivate,
+    customData: roomConfig.customData
+  });
+  
+  console.log(`Room created: ${room.id}`);
+  return room;
+}
+
+// Get room information
+async function getRoomInfo(roomId) {
+  const room = await playroomServer.getRoom(roomId);
+  return {
+    id: room.id,
+    name: room.name,
+    playerCount: room.players.length,
+    maxPlayers: room.maxPlayers,
+    isActive: room.isActive
+  };
+}
+```
+
+### Room Events
+
+```javascript
+// Listen for room events
+playroomServer.on('roomCreated', (room) => {
+  console.log(`New room created: ${room.name}`);
+});
+
+playroomServer.on('playerJoined', (player, room) => {
+  console.log(`${player.name} joined room ${room.name}`);
+  
+  // Notify other players
+  playroomServer.broadcast(room.id, {
+    type: 'playerJoined',
+    player: {
+      id: player.id,
+      name: player.name
+    }
+  }, player.id); // Exclude the joining player
+});
+
+playroomServer.on('playerLeft', (player, room) => {
+  console.log(`${player.name} left room ${room.name}`);
+  
+  // Clean up player data
+  playroomServer.removePlayerFromRoom(player.id, room.id);
+});
+```
+
+## Game State Management
+
+### Server-Side State
+
+```javascript
+class GameStateManager {
+  constructor(playroomServer) {
+    this.playroomServer = playroomServer;
+    this.gameStates = new Map();
+  }
+  
+  async createGameState(roomId, initialState) {
+    this.gameStates.set(roomId, {
+      ...initialState,
+      lastUpdated: Date.now()
+    });
+    
+    // Sync to PlayroomKit
+    await this.playroomServer.setRoomState(roomId, 'gameState', initialState);
+  }
+  
+  async updateGameState(roomId, updates) {
+    const currentState = this.gameStates.get(roomId) || {};
+    const newState = { ...currentState, ...updates, lastUpdated: Date.now() };
+    
+    this.gameStates.set(roomId, newState);
+    
+    // Sync to all players
+    await this.playroomServer.setRoomState(roomId, 'gameState', newState);
+    
+    return newState;
+  }
+  
+  validateGameAction(roomId, playerId, action) {
+    const gameState = this.gameStates.get(roomId);
+    const room = this.playroomServer.getRoom(roomId);
+    
+    // Example validation for turn-based game
+    if (gameState.currentTurn !== playerId) {
+      return { valid: false, reason: 'Not your turn' };
+    }
+    
+    // Add more validation logic here
+    return { valid: true };
+  }
+}
+```
+
+### Anti-Cheat Validation
+
+```javascript
+class AntiCheatValidator {
+  constructor() {
+    this.playerActions = new Map();
+    this.suspiciousPlayers = new Set();
+  }
+  
+  validatePlayerAction(playerId, action) {
+    const playerHistory = this.playerActions.get(playerId) || [];
+    
+    // Rate limiting
+    const recentActions = playerHistory.filter(
+      a => Date.now() - a.timestamp < 1000
+    );
+    
+    if (recentActions.length > 10) {
+      this.flagSuspiciousPlayer(playerId, 'Rate limit exceeded');
+      return false;
+    }
+    
+    // Movement validation
+    if (action.type === 'move') {
+      const lastPosition = playerHistory[playerHistory.length - 1]?.position;
+      if (lastPosition && this.isMovementSuspicious(lastPosition, action.position)) {
+        this.flagSuspiciousPlayer(playerId, 'Suspicious movement');
+        return false;
+      }
+    }
+    
+    // Store action
+    playerHistory.push({
+      ...action,
+      timestamp: Date.now()
+    });
+    
+    this.playerActions.set(playerId, playerHistory.slice(-50)); // Keep last 50 actions
+    return true;
+  }
+  
+  isMovementSuspicious(lastPos, newPos) {
+    const distance = Math.sqrt(
+      Math.pow(newPos.x - lastPos.x, 2) + 
+      Math.pow(newPos.y - lastPos.y, 2)
+    );
+    
+    // Check if movement is too fast (teleporting)
+    return distance > 100; // Adjust based on your game
+  }
+  
+  flagSuspiciousPlayer(playerId, reason) {
+    console.warn(`Suspicious activity from player ${playerId}: ${reason}`);
+    this.suspiciousPlayers.add(playerId);
+    
+    // You could implement automatic actions here
+    // like kicking the player or reporting to admins
+  }
+}
+```
+
+## Database Integration
+
+### MongoDB Example
+
+```javascript
+const { MongoClient } = require('mongodb');
+
+class GameDatabase {
+  constructor(connectionString) {
+    this.client = new MongoClient(connectionString);
+    this.db = null;
+  }
+  
+  async connect() {
+    await this.client.connect();
+    this.db = this.client.db('PlayroomKit_game');
+    console.log('Connected to MongoDB');
+  }
+  
+  async savePlayerData(playerId, data) {
+    await this.db.collection('players').updateOne(
+      { playerId },
+      { $set: { ...data, lastUpdated: new Date() } },
+      { upsert: true }
+    );
+  }
+  
+  async getPlayerData(playerId) {
+    const player = await this.db.collection('players').findOne({ playerId });
+    return player || {};
+  }
+  
+  async saveGameSession(roomId, sessionData) {
+    await this.db.collection('sessions').insertOne({
+      roomId,
+      ...sessionData,
+      startTime: new Date()
+    });
+  }
+  
+  async getLeaderboard(gameMode, limit = 10) {
+    return await this.db.collection('players')
+      .find({ gameMode })
+      .sort({ score: -1 })
+      .limit(limit)
+      .toArray();
+  }
+}
+```
+
+### Redis for Caching
+
+```javascript
+const redis = require('redis');
+
+class GameCache {
+  constructor() {
+    this.client = redis.createClient();
+  }
+  
+  async connect() {
+    await this.client.connect();
+    console.log('Connected to Redis');
+  }
+  
+  async cacheRoomState(roomId, state) {
+    await this.client.setEx(
+      `room:${roomId}:state`, 
+      300, // 5 minutes TTL
+      JSON.stringify(state)
+    );
+  }
+  
+  async getRoomState(roomId) {
+    const cached = await this.client.get(`room:${roomId}:state`);
+    return cached ? JSON.parse(cached) : null;
+  }
+  
+  async cachePlayerSession(playerId, sessionData) {
+    await this.client.setEx(
+      `player:${playerId}:session`,
+      3600, // 1 hour TTL
+      JSON.stringify(sessionData)
+    );
+  }
+}
+```
+
+## Matchmaking Service
+
+```javascript
+class MatchmakingService {
+  constructor(playroomServer) {
+    this.playroomServer = playroomServer;
+    this.matchmakingQueue = new Map();
+  }
+  
+  async addPlayerToQueue(playerId, preferences) {
+    const player = await this.playroomServer.getPlayer(playerId);
+    
+    this.matchmakingQueue.set(playerId, {
+      player,
+      preferences,
+      joinedAt: Date.now()
+    });
+    
+    // Try to find a match
+    await this.tryMatchmaking();
+  }
+  
+  async tryMatchmaking() {
+    const players = Array.from(this.matchmakingQueue.values());
+    
+    if (players.length >= 2) {
+      // Simple skill-based matching
+      const sortedPlayers = players.sort((a, b) => 
+        Math.abs(a.player.skill - b.player.skill)
+      );
+      
+      // Create room for matched players
+      const roomPlayers = sortedPlayers.slice(0, 4); // Max 4 players
+      const room = await this.playroomServer.createRoom({
+        name: 'Matched Game',
+        maxPlayers: roomPlayers.length,
+        gameMode: 'competitive'
+      });
+      
+      // Add players to room
+      for (const { player } of roomPlayers) {
+        await this.playroomServer.addPlayerToRoom(player.id, room.id);
+        this.matchmakingQueue.delete(player.id);
+      }
+      
+      console.log(`Match created: ${room.id} with ${roomPlayers.length} players`);
+    }
+  }
+  
+  removePlayerFromQueue(playerId) {
+    this.matchmakingQueue.delete(playerId);
+  }
+}
+```
+
+## Performance Monitoring
+
+```javascript
+class PerformanceMonitor {
+  constructor() {
+    this.metrics = {
+      activeRooms: 0,
+      activePlayers: 0,
+      messagesPerSecond: 0,
+      averageLatency: 0
+    };
+    
+    this.messageCount = 0;
+    this.latencySum = 0;
+    this.latencyCount = 0;
+    
+    // Update metrics every second
+    setInterval(() => this.updateMetrics(), 1000);
+  }
+  
+  recordMessage(latency) {
+    this.messageCount++;
+    this.latencySum += latency;
+    this.latencyCount++;
+  }
+  
+  updateMetrics() {
+    this.metrics.messagesPerSecond = this.messageCount;
+    this.metrics.averageLatency = this.latencyCount > 0 
+      ? this.latencySum / this.latencyCount 
+      : 0;
+    
+    // Reset counters
+    this.messageCount = 0;
+    this.latencySum = 0;
+    this.latencyCount = 0;
+    
+    // Log metrics
+    console.log('Performance Metrics:', this.metrics);
+  }
+  
+  getMetrics() {
+    return { ...this.metrics };
+  }
+}
+```
+
+## Complete Server Example
+
+```javascript
+const express = require('express');
+const { PlayroomServer } = require('@PlayroomKit/node');
+
+const app = express();
+const playroomServer = new PlayroomServer({
+  apiKey: process.env.PlayroomKit_API_KEY,
+  secret: process.env.PlayroomKit_SECRET
+});
+
+const gameStateManager = new GameStateManager(playroomServer);
+const antiCheatValidator = new AntiCheatValidator();
+const matchmakingService = new MatchmakingService(playroomServer);
+
+app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: Date.now() });
+});
+
+// Create room endpoint
+app.post('/api/rooms', async (req, res) => {
+  try {
+    const room = await playroomServer.createRoom(req.body);
+    await gameStateManager.createGameState(room.id, { phase: 'waiting' });
+    res.json(room);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Join matchmaking
+app.post('/api/matchmaking/join', async (req, res) => {
+  try {
+    const { playerId, preferences } = req.body;
+    await matchmakingService.addPlayerToQueue(playerId, preferences);
+    res.json({ status: 'queued' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Game action endpoint
+app.post('/api/game/action', async (req, res) => {
+  try {
+    const { roomId, playerId, action } = req.body;
+    
+    // Validate action
+    const validation = gameStateManager.validateGameAction(roomId, playerId, action);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.reason });
+    }
+    
+    // Anti-cheat check
+    if (!antiCheatValidator.validatePlayerAction(playerId, action)) {
+      return res.status(403).json({ error: 'Suspicious activity detected' });
+    }
+    
+    // Process action
+    const newState = await gameStateManager.updateGameState(roomId, {
+      lastAction: action,
+      lastActionBy: playerId,
+      lastActionAt: Date.now()
+    });
+    
+    res.json({ success: true, newState });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`PlayroomKit Node.js server running on port ${PORT}`);
+});
+``` 

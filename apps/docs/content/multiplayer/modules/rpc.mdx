@@ -1,0 +1,196 @@
+---
+title: RPC
+description: Remote Procedure Calls (RPCs) in PlayroomKit for real-time communication between players.
+---
+
+# RPCs in Playroom
+
+Playroom supports RPCs (remote procedure calls) to allow players to call functions on other players' clients. RPCs are useful for implementing game actions such as shooting bullets, chat messages, taking damage, etc.
+
+## Registering RPC Handlers
+
+To register an RPC handler, use the `RPC.register()` function:
+
+```javascript
+import { RPC } from 'playroomkit';
+ 
+// Register an RPC handler for bullet shooting
+RPC.register('shoot', (data, caller) => {
+  console.log(`Player ${caller.id} shot ${data.victimId} with a bullet!`);
+  players[data.victimId].setState("dead", true);
+});
+ 
+// Trigger the RPC on the host only
+RPC.call('shoot', {victimId: 123}, RPC.Mode.HOST);
+```
+
+## Modes of RPCs
+
+RPCs can be triggered in three different modes:
+
+* `RPC.Mode.HOST`: The RPC is triggered on the host only.
+* `RPC.Mode.ALL`: The RPC is triggered on all clients (including the host and the caller).
+* `RPC.Mode.OTHERS`: The RPC is triggered on all clients except the caller.
+
+### Example Usage
+
+```javascript
+// Call RPC on host only
+RPC.call('validateMove', moveData, RPC.Mode.HOST);
+
+// Call RPC on all players
+RPC.call('showExplosion', explosionData, RPC.Mode.ALL);
+
+// Call RPC on all players except the caller
+RPC.call('playerMessage', messageData, RPC.Mode.OTHERS);
+```
+
+## RPC Response
+
+RPCs can return a value to the caller of the RPC as a response. To do so, return a value (or a promise that resolves to a value) from the RPC handler:
+
+```javascript
+// Register an RPC handler for bullet shooting
+RPC.register('shoot', (data, caller) => {
+  console.log(`Player ${caller.id} shot ${data.victimId} with a bullet!`);
+  players[data.victimId].setState("dead", true);
+  return "You shot a bullet!";
+});
+ 
+// Trigger the RPC on the host only
+const response = await RPC.call('shoot', {victimId: 123}, RPC.Mode.HOST);
+console.log(response); // "You shot a bullet!"
+```
+
+* If the RPC was triggered on multiple clients, the response will be the non-`undefined` value returned by the first client to respond.
+* If all RPC handlers return `undefined`, the `RPC.call` will not resolve.
+
+## Common Use Cases
+
+### Chat System
+
+```javascript
+// Register chat message handler
+RPC.register('chatMessage', (data, caller) => {
+  displayChatMessage(caller.name, data.message);
+});
+
+// Send chat message to all other players
+function sendChatMessage(message) {
+  RPC.call('chatMessage', { message }, RPC.Mode.OTHERS);
+}
+```
+
+### Combat System
+
+```javascript
+// Register damage handler
+RPC.register('takeDamage', (data, caller) => {
+  const player = getPlayer(data.targetId);
+  player.health -= data.damage;
+  
+  if (player.health <= 0) {
+    player.setState('dead', true);
+    return 'Player eliminated';
+  }
+  
+  return 'Damage taken';
+});
+
+// Deal damage to another player
+async function attackPlayer(targetId, damage) {
+  const result = await RPC.call('takeDamage', { 
+    targetId, 
+    damage 
+  }, RPC.Mode.HOST);
+  
+  console.log(result);
+}
+```
+
+### Game State Validation
+
+```javascript
+// Host validates moves
+RPC.register('validateMove', (data, caller) => {
+  const isValidMove = checkMoveValidity(data.move, caller.id);
+  
+  if (isValidMove) {
+    applyMove(data.move, caller.id);
+    // Broadcast move to all players
+    RPC.call('moveApplied', { 
+      playerId: caller.id, 
+      move: data.move 
+    }, RPC.Mode.ALL);
+  }
+  
+  return isValidMove;
+});
+
+// Player requests move validation
+async function makeMove(move) {
+  const isValid = await RPC.call('validateMove', { move }, RPC.Mode.HOST);
+  
+  if (!isValid) {
+    console.log('Invalid move!');
+  }
+}
+```
+
+## Best Practices
+
+### Error Handling
+
+```javascript
+// Handle RPC errors gracefully
+RPC.register('processAction', (data, caller) => {
+  try {
+    const result = processPlayerAction(data.action);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Call with error handling
+async function performAction(action) {
+  try {
+    const response = await RPC.call('processAction', { action }, RPC.Mode.HOST);
+    
+    if (response.success) {
+      console.log('Action succeeded:', response.result);
+    } else {
+      console.error('Action failed:', response.error);
+    }
+  } catch (error) {
+    console.error('RPC call failed:', error);
+  }
+}
+```
+
+### Performance Optimization
+
+- Use appropriate RPC modes to minimize network traffic
+- Keep RPC data payloads small
+- Avoid calling RPCs in tight loops
+- Consider batching multiple actions into single RPC calls
+
+```javascript
+// Batch multiple actions
+RPC.register('batchActions', (data, caller) => {
+  const results = data.actions.map(action => processAction(action));
+  return results;
+});
+
+// Instead of multiple RPC calls
+// RPC.call('action1', data1);
+// RPC.call('action2', data2);
+// RPC.call('action3', data3);
+
+// Use batch call
+RPC.call('batchActions', { 
+  actions: [data1, data2, data3] 
+}, RPC.Mode.HOST);
+```
+
+Based on the [official PlayroomKit RPC documentation](https://docs.PlayroomKit.com/components/rpc).

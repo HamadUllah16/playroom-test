@@ -1,0 +1,269 @@
+---
+title: Setting Up PlayroomKit
+description: Quick start guide to integrate PlayroomKit into your game engine or web framework.
+---
+
+import { Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Callout type="info">
+    Haven't decided on a game engine yet? Check out our <a href="/docs/gameengine/gettingstarted">Engines</a> guide to see which engines we support, and set up your first game with PlayroomKit.
+    
+    You can also choose to start with a boilerplate project from our <a href="/docs/boilerplates">Boilerplates</a> section.
+</Callout>
+
+Get started with PlayroomKit in just a few steps:
+
+<EngineTabsWithQuery items={['JavaScript/TypeScript', 'React', 'Unity', 'Threejs', 'Playcanvas']}>
+<Tab value="JavaScript/TypeScript">
+
+## Using NPM [!toc]
+If you are using npm, install PlayroomKit and its peer dependencies:
+```bash copy
+npm install --save playroomkit
+```
+
+## Using a CDN [!toc]
+
+You can also directly include it via a script tag from a CDN like `unpkg.com` or our own `cdn.joinplayroom.com`, make sure to also include the peer dependencies also (react, react-dom):
+
+```html
+<body>
+  <script src="https://unpkg.com/playroomkit/multiplayer.full.umd.js" crossorigin="anonymous"></script>
+  <script>
+    #Do what you want
+    Playroom.doSomething()
+  </script>
+</body>
+```
+
+This example imports the `Playroom` scope which can be used by your game.
+
+</Tab>
+<Tab value="react">
+
+## Using NPM [!toc]
+If you are using npm, install PlayroomKit and its peer dependencies:
+```bash copy
+npm install --save playroomkit react react-dom
+```
+## Using a CDN [!toc]
+
+You can also directly include it via a script tag from a CDN like `unpkg.com` or our own `cdn.joinplayroom.com`, make sure to also include the peer dependencies also (react, react-dom):
+
+```html
+<body>
+  <script src="https://unpkg.com/playroomkit/multiplayer.full.umd.js" crossorigin="anonymous"></script>
+  <script>
+    #Do what you want
+    Playroom.doSomething()
+  </script>
+</body>
+```
+
+This example imports the `Playroom` scope which can be used by your game.
+
+</Tab>
+<Tab value="Unity">
+
+1. Download the PlayroomKit Unity package from the Unity Asset Store or from our [GitHub repository](https://github.com/playroomkit/unity/releases).
+2. Import the package into your Unity project
+3. Configure your API keys in the PlayroomKit settings
+    ```
+    cd Assets/PlayroomKit
+    npm install
+    ```
+
+</Tab>
+
+<Tab value="threejs">
+    ```bash
+    npm install playroomkit three
+    ```
+
+## Quick Setup
+
+```javascript
+import * as THREE from 'three';
+import { insertCoin, onPlayerJoin, myPlayer } from 'playroomkit';
+
+// Initialize Three.js scene
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Initialize PlayroomKit
+await insertCoin();
+```
+
+## Features
+
+- **3D Multiplayer** - Synchronize 3D objects and player positions
+- **Camera Sync** - Share viewing perspectives between players
+- **Physics Integration** - Work with Three.js physics engines
+- **Real-time Rendering** - Smooth multiplayer 3D experiences
+
+## Examples
+
+### Player Management
+
+```javascript
+import { onPlayerJoin, onPlayerLeave, getPlayer } from 'playroomkit';
+
+const players = new Map();
+
+onPlayerJoin((player) => {
+    // Create a cube for each player
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshBasicMaterial({ 
+        color: player.getProfile().color.hex 
+    });
+    const cube = new THREE.Mesh(geometry, material);
+    
+    scene.add(cube);
+    players.set(player.id, cube);
+});
+
+onPlayerLeave((player) => {
+    const cube = players.get(player.id);
+    if (cube) {
+        scene.remove(cube);
+        players.delete(player.id);
+    }
+});
+```
+
+### Position Synchronization
+
+```javascript
+function animate() {
+    // Update player positions from state
+    players.forEach((mesh, playerId) => {
+        const player = getPlayer(playerId);
+        const pos = player.getState('position');
+        if (pos) {
+            mesh.position.set(pos.x, pos.y, pos.z);
+        }
+    });
+    
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+}
+
+animate();
+```
+
+</Tab>
+
+<Tab value="playcanvas">
+    ```bash
+    # Add PlayroomKit script to your PlayCanvas project
+    # Include in your HTML file or as a script asset
+    ```
+
+## Installation
+
+1. Add PlayroomKit script to your PlayCanvas project
+2. Include the CDN link in your project settings:
+    ```
+    https://unpkg.com/playroomkit@latest/dist/index.js
+    ```
+3. Initialize in your main script
+
+## Quick Setup
+
+```javascript
+// PlayCanvas Script - GameManager
+var GameManager = pc.createScript('gameManager');
+
+GameManager.prototype.initialize = function() {
+    // Initialize PlayroomKit
+    Playroom.insertCoin().then(() => {
+        console.log('PlayroomKit initialized!');
+        this.setupMultiplayer();
+    });
+};
+
+GameManager.prototype.setupMultiplayer = function() {
+    Playroom.onPlayerJoin(this.onPlayerJoin.bind(this));
+    Playroom.onPlayerLeave(this.onPlayerLeave.bind(this));
+};
+```
+
+## Features
+
+- **Entity-Component System** - Integrate with PlayCanvas ECS
+- **Built-in Physics** - Sync physics objects across players
+- **Asset Management** - Share 3D models and textures
+- **Cross-platform** - Works on web, mobile, and desktop
+
+## Examples
+
+### Player Entities
+
+```javascript
+GameManager.prototype.onPlayerJoin = function(player) {
+    // Create a player entity
+    var playerEntity = new pc.Entity();
+    playerEntity.addComponent('model', { type: 'box' });
+    
+    // Add material with player color
+    var material = new pc.StandardMaterial();
+    material.diffuse = new pc.Color().fromString(player.getProfile().color.hex);
+    playerEntity.model.material = material;
+    
+    this.app.root.addChild(playerEntity);
+    this.players.set(player.id, playerEntity);
+};
+```
+
+### State Synchronization
+
+```javascript
+GameManager.prototype.update = function(dt) {
+    // Sync player positions
+    this.players.forEach((entity, playerId) => {
+        var player = Playroom.getPlayer(playerId);
+        var position = player.getState('position');
+        
+        if (position) {
+            entity.setPosition(position.x, position.y, position.z);
+        }
+    });
+};
+
+// Update player's own position
+GameManager.prototype.updateMyPosition = function() {
+    var myPos = this.myPlayerEntity.getPosition();
+    Playroom.myPlayer().setState('position', {
+        x: myPos.x,
+        y: myPos.y,
+        z: myPos.z
+    });
+};
+```
+
+### Room Management
+
+```javascript
+// Create a multiplayer room
+Playroom.createRoom({
+    maxPlayers: 4,
+    roomCode: 'PLAY123'
+}).then((room) => {
+    console.log('Room created:', room.code);
+});
+
+// Join existing room
+Playroom.joinRoom('PLAY123').then((success) => {
+    if (success) {
+        console.log('Joined room successfully!');
+    }
+});
+```
+
+</Tab>
+
+</EngineTabsWithQuery>

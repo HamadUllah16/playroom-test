@@ -1,0 +1,121 @@
+---
+title: JavaScript 
+description: Build multiplayer games with pure JavaScript and PlayroomKit.
+---
+
+# JavaScript Integration
+
+Use PlayroomKit with vanilla JavaScript to create multiplayer web games without any framework dependencies.
+
+## Installation
+
+```bash
+npm install @PlayroomKit/client
+```
+
+Or include via CDN:
+
+```html
+<script src="https://cdn.PlayroomKit.com/client.js"></script>
+```
+
+## Quick Setup
+
+```javascript
+import { Playroom } from '@PlayroomKit/client';
+
+// Initialize PlayroomKit
+Playroom.init('your-api-key').then(() => {
+    console.log('PlayroomKit initialized!');
+});
+```
+
+## Creating a Game
+
+```javascript
+// Create a game room
+const room = await Playroom.createRoom({
+    maxPlayers: 4,
+    gameMode: 'battle'
+});
+
+console.log(`Room created: ${room.code}`);
+
+// Handle player events
+Playroom.onPlayerJoin((player) => {
+    console.log(`Player ${player.name} joined!`);
+});
+
+Playroom.onPlayerLeave((player) => {
+    console.log(`Player ${player.name} left!`);
+});
+```
+
+## State Management
+
+```javascript
+// Set shared state
+Playroom.setState('gameStarted', true);
+Playroom.setState('score', { player1: 100, player2: 150 });
+
+// Listen for state changes
+Playroom.onStateChange('score', (newScore) => {
+    updateScoreDisplay(newScore);
+});
+```
+
+## Real-time Communication
+
+```javascript
+// Send RPC calls to other players
+Playroom.rpc('playerAttack', { damage: 25, target: 'player2' });
+
+// Handle incoming RPC calls
+Playroom.onRpc('playerAttack', (data, sender) => {
+    console.log(`${sender.name} attacked for ${data.damage} damage!`);
+});
+```
+
+## Canvas Integration
+
+```javascript
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Sync player positions
+function updatePlayerPosition(x, y) {
+    Playroom.setState('myPosition', { x, y });
+}
+
+// Render other players
+Playroom.onStateChange('*', (state) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    Object.values(Playroom.getPlayers()).forEach(player => {
+        const pos = player.getState('myPosition');
+        if (pos) {
+            ctx.fillRect(pos.x, pos.y, 20, 20);
+        }
+    });
+});
+```
+
+## DOM Integration
+
+```javascript
+// Update player list in DOM
+function updatePlayerList() {
+    const playerList = document.getElementById('players');
+    playerList.innerHTML = '';
+    
+    Playroom.getPlayers().forEach(player => {
+        const playerElement = document.createElement('div');
+        playerElement.textContent = player.name;
+        playerElement.className = player.isHost ? 'host' : 'player';
+        playerList.appendChild(playerElement);
+    });
+}
+
+Playroom.onPlayerJoin(updatePlayerList);
+Playroom.onPlayerLeave(updatePlayerList);
+``` 

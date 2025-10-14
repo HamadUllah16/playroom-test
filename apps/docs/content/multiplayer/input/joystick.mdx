@@ -1,0 +1,433 @@
+---
+title: Virtual Joystick
+description: Implement virtual joystick controls for mobile multiplayer games with PlayroomKit.
+---
+
+## Installation
+
+The virtual joystick is included with the main PlayroomKit SDK:
+
+```bash
+npm install @PlayroomKit/client
+```
+
+For React projects:
+```bash
+npm install @PlayroomKit/react
+```
+
+## Basic Setup
+
+### JavaScript Implementation
+
+```javascript
+import { Playroom, VirtualJoystick } from '@PlayroomKit/client';
+
+// Initialize PlayroomKit
+await Playroom.init('your-api-key');
+
+// Create virtual joystick
+const joystick = new VirtualJoystick({
+  container: document.getElementById('joystick-container'),
+  size: 120,
+  sensitivity: 1.0,
+  deadZone: 0.1
+});
+
+// Listen for joystick input
+joystick.onMove((data) => {
+  const { x, y, magnitude, angle } = data;
+  
+  // Sync player movement
+  Playroom.setState('myPlayer.input', {
+    x: x,
+    y: y,
+    magnitude: magnitude,
+    angle: angle
+  });
+});
+
+joystick.onEnd(() => {
+  // Player stopped moving
+  Playroom.setState('myPlayer.input', {
+    x: 0,
+    y: 0,
+    magnitude: 0,
+    angle: 0
+  });
+});
+```
+
+### React Implementation
+
+```jsx
+import { useVirtualJoystick, usePlayroomState } from '@PlayroomKit/react';
+
+function PlayerController() {
+  const [playerInput, setPlayerInput] = usePlayroomState('myPlayer.input', { x: 0, y: 0 });
+  
+  const { JoystickComponent, joystickData } = useVirtualJoystick({
+    size: 120,
+    sensitivity: 1.0,
+    deadZone: 0.1,
+    onMove: (data) => {
+      setPlayerInput({
+        x: data.x,
+        y: data.y,
+        magnitude: data.magnitude,
+        angle: data.angle
+      });
+    },
+    onEnd: () => {
+      setPlayerInput({ x: 0, y: 0, magnitude: 0, angle: 0 });
+    }
+  });
+
+  return (
+    <div className="game-container">
+      {/* Game content */}
+      <div className="game-world">
+        <Player input={playerInput} />
+      </div>
+      
+      {/* Virtual joystick */}
+      <div className="joystick-container">
+        <JoystickComponent />
+      </div>
+    </div>
+  );
+}
+```
+
+## Configuration Options
+
+### Joystick Settings
+
+```javascript
+const joystickConfig = {
+  // Visual appearance
+  size: 120,                    // Joystick size in pixels
+  knobSize: 40,                 // Knob size in pixels
+  backgroundColor: '#000000',   // Background color
+  knobColor: '#ffffff',         // Knob color
+  borderColor: '#333333',       // Border color
+  opacity: 0.7,                 // Transparency
+  
+  // Behavior
+  sensitivity: 1.0,             // Movement sensitivity (0.1 - 2.0)
+  deadZone: 0.1,                // Dead zone radius (0.0 - 0.5)
+  restorePosition: true,        // Return to center when released
+  lockToCircle: true,           // Limit movement to circular area
+  
+  // Touch settings
+  multiTouch: false,            // Allow multiple touch points
+  fadeOnInactive: true,         // Fade when not in use
+  hideOnInactive: false,        // Hide completely when not in use
+  
+  // Position
+  position: 'bottom-left',      // 'bottom-left', 'bottom-right', 'custom'
+  margin: { x: 20, y: 20 }      // Margin from edges
+};
+
+const joystick = new VirtualJoystick(joystickConfig);
+```
+
+## Player Movement
+
+### Basic Character Movement
+
+```javascript
+class Player {
+  constructor() {
+    this.position = { x: 0, y: 0 };
+    this.speed = 200; // pixels per second
+    this.rotation = 0;
+  }
+  
+  update(input, deltaTime) {
+    if (input.magnitude > 0) {
+      // Move player based on joystick input
+      this.position.x += input.x * this.speed * deltaTime;
+      this.position.y += input.y * this.speed * deltaTime;
+      
+      // Rotate player to face movement direction
+      this.rotation = input.angle;
+      
+      // Sync position with other players
+      Playroom.setState('players.me.position', this.position);
+      Playroom.setState('players.me.rotation', this.rotation);
+    }
+  }
+}
+
+// Game loop
+function gameLoop() {
+  const currentTime = Date.now();
+  const deltaTime = (currentTime - lastTime) / 1000;
+  
+  const input = Playroom.getState('myPlayer.input');
+  player.update(input, deltaTime);
+  
+  lastTime = currentTime;
+  requestAnimationFrame(gameLoop);
+}
+```
+
+### Advanced Movement with Physics
+
+```javascript
+class PhysicsPlayer {
+  constructor() {
+    this.position = { x: 0, y: 0 };
+    this.velocity = { x: 0, y: 0 };
+    this.acceleration = 500;
+    this.friction = 0.9;
+    this.maxSpeed = 300;
+  }
+  
+  update(input, deltaTime) {
+    // Apply acceleration based on joystick input
+    const force = {
+      x: input.x * this.acceleration * deltaTime,
+      y: input.y * this.acceleration * deltaTime
+    };
+    
+    this.velocity.x += force.x;
+    this.velocity.y += force.y;
+    
+    // Limit maximum speed
+    const speed = Math.sqrt(this.velocity.x ** 2 + this.velocity.y ** 2);
+    if (speed > this.maxSpeed) {
+      this.velocity.x = (this.velocity.x / speed) * this.maxSpeed;
+      this.velocity.y = (this.velocity.y / speed) * this.maxSpeed;
+    }
+    
+    // Apply friction when no input
+    if (input.magnitude === 0) {
+      this.velocity.x *= this.friction;
+      this.velocity.y *= this.friction;
+    }
+    
+    // Update position
+    this.position.x += this.velocity.x * deltaTime;
+    this.position.y += this.velocity.y * deltaTime;
+    
+    // Sync state
+    Playroom.setState('players.me.position', this.position);
+    Playroom.setState('players.me.velocity', this.velocity);
+  }
+}
+```
+
+## Mobile Optimization
+
+### Touch Detection
+
+```javascript
+// Detect if device supports touch
+const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+// Show joystick only on mobile devices
+if (isMobile) {
+  const joystick = new VirtualJoystick({
+    container: document.getElementById('mobile-controls'),
+    size: 100
+  });
+} else {
+  // Use keyboard controls for desktop
+  setupKeyboardControls();
+}
+```
+
+### Responsive Design
+
+```css
+/* Joystick responsive styling */
+.joystick-container {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+}
+
+@media (max-width: 480px) {
+  .joystick-container {
+    bottom: 10px;
+    left: 10px;
+  }
+}
+
+@media (orientation: landscape) {
+  .joystick-container {
+    bottom: 15px;
+    left: 15px;
+  }
+}
+
+/* Hide on desktop */
+@media (min-width: 1024px) {
+  .joystick-container {
+    display: none;
+  }
+}
+```
+
+## Multi-Touch Support
+
+### Dual Joystick Setup
+
+```javascript
+// Movement joystick (left)
+const movementJoystick = new VirtualJoystick({
+  container: document.getElementById('movement-joystick'),
+  position: 'bottom-left',
+  size: 120,
+  onMove: (data) => {
+    Playroom.setState('myPlayer.movement', data);
+  }
+});
+
+// Action joystick (right)
+const actionJoystick = new VirtualJoystick({
+  container: document.getElementById('action-joystick'),
+  position: 'bottom-right',
+  size: 100,
+  onMove: (data) => {
+    // Handle shooting/aiming
+    if (data.magnitude > 0.5) {
+      Playroom.rpc('playerShoot', {
+        direction: { x: data.x, y: data.y },
+        angle: data.angle
+      });
+    }
+  }
+});
+```
+
+## Custom Styling
+
+### CSS Customization
+
+```css
+/* Custom joystick styles */
+.virtual-joystick {
+  border: 2px solid #00ff88;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+.virtual-joystick-knob {
+  background: linear-gradient(45deg, #00ff88, #00cc6a);
+  border: 1px solid #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Active state */
+.virtual-joystick.active {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+}
+
+.virtual-joystick.active .virtual-joystick-knob {
+  background: linear-gradient(45deg, #ff6b6b, #ff5252);
+}
+```
+
+## Integration with Game Engines
+
+### Phaser.js Integration
+
+```javascript
+class PhaserJoystickPlugin extends Phaser.Plugins.BasePlugin {
+  constructor(pluginManager) {
+    super(pluginManager);
+    this.joystick = null;
+  }
+  
+  init() {
+    this.joystick = new VirtualJoystick({
+      container: this.game.canvas.parentElement,
+      size: 120,
+      onMove: (data) => {
+        this.game.events.emit('joystick-move', data);
+      }
+    });
+  }
+  
+  destroy() {
+    if (this.joystick) {
+      this.joystick.destroy();
+    }
+  }
+}
+
+// In your Phaser scene
+this.events.on('joystick-move', (data) => {
+  this.player.setVelocity(data.x * 200, data.y * 200);
+});
+```
+
+## Accessibility
+
+### Support for Different Abilities
+
+```javascript
+const accessibleJoystick = new VirtualJoystick({
+  size: 140, // Larger for easier access
+  sensitivity: 0.7, // Lower sensitivity
+  deadZone: 0.2, // Larger dead zone
+  vibration: true, // Haptic feedback
+  highContrast: true, // High contrast colors
+  
+  // Voice control integration
+  voiceCommands: {
+    'move up': { x: 0, y: -1 },
+    'move down': { x: 0, y: 1 },
+    'move left': { x: -1, y: 0 },
+    'move right': { x: 1, y: 0 },
+    'stop': { x: 0, y: 0 }
+  }
+});
+```
+
+## Performance Tips
+
+1. **Throttle Updates**: Limit joystick updates to 30-60 FPS
+2. **Dead Zone**: Use appropriate dead zones to reduce unnecessary network traffic
+3. **Interpolation**: Use client-side prediction for smooth movement
+4. **Batching**: Batch multiple input changes into single network updates
+5. **Cleanup**: Properly destroy joystick instances when not needed
+
+## Troubleshooting
+
+### Common Issues
+
+**Joystick not appearing on mobile:**
+```javascript
+// Ensure proper viewport meta tag
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+// Check touch event support
+if (!('ontouchstart' in window)) {
+  console.warn('Touch events not supported');
+}
+```
+
+**Poor responsiveness:**
+```javascript
+// Reduce sensitivity and increase dead zone
+const joystick = new VirtualJoystick({
+  sensitivity: 0.8,
+  deadZone: 0.15,
+  throttle: 16 // Limit to 60 FPS
+});
+```
+
+**Memory leaks:**
+```javascript
+// Always cleanup when done
+window.addEventListener('beforeunload', () => {
+  joystick.destroy();
+});
+```
