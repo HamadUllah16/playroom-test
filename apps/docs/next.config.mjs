@@ -7,8 +7,10 @@ const config = {
   basePath: '/docs',
   trailingSlash: false,
   reactStrictMode: true,
-  outputFileTracingIncludes: {
-    '/': ['./content/**/*'], // path relative to apps/docs
+  experimental: {
+    outputFileTracingIncludes: {
+      '/': ['./content/**/*'], // path relative to apps/docs
+    },
   },
   // Ensure llms.txt rewrite works as before
   async rewrites() {
