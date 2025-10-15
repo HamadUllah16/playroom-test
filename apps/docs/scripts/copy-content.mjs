@@ -14,4 +14,4 @@ if (fs.existsSync(dest)) {
 
 // Copy recursively from source to destination
 fs.cpSync(src, dest, { recursive: true });
-console.log(`✅ Copied content folder to public/content`);
+console.log(`✅ Copied content folder to ${dest}`);

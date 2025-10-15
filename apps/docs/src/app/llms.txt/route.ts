@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Serve MDX file from public/content
     if (normalized) {
         console.log("Current working directory:", process.cwd());
-        const mdxPath = path.join(process.cwd(), "apps", "docs", "public", "content", ...normalized.split("/")) + ".mdx";
+        const mdxPath = path.join(process.cwd(), "content", ...normalized.split("/")) + ".mdx";
         console.log("[llms.txt] Resolved MDX path:", mdxPath);
 
         if (!fs.existsSync(mdxPath)) {
