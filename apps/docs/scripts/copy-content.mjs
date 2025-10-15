@@ -1,8 +1,10 @@
 import fs from "fs";
 import path from "path";
 
-const src = path.join(process.cwd(), "content"); // original content folder
-const dest = path.join(process.cwd(), "public", "content"); // destination in public
+console.log("Current working directory:", process.cwd());
+
+const src = path.join(process.cwd(), "apps", "docs", "content"); // original content folder
+const dest = path.join(process.cwd(), "apps", "docs", "public", "content"); // destination in public
 
 // Delete old content folder if it exists
 if (fs.existsSync(dest)) {
