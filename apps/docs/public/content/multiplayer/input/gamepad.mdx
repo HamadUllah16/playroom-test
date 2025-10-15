@@ -1,0 +1,735 @@
+---
+title: Gamepad Support
+description: Implement gamepad and controller support for multiplayer games with PlayroomKit.
+---
+
+# Gamepad Support
+
+PlayroomKit provides comprehensive gamepad and controller support for multiplayer games, enabling players to use Xbox, PlayStation, and other controllers seamlessly.
+
+## Installation
+
+Gamepad support is included with the main PlayroomKit SDK:
+
+```bash
+npm install @PlayroomKit/client
+```
+
+For React projects:
+```bash
+npm install @PlayroomKit/react
+```
+
+## Basic Setup
+
+### JavaScript Implementation
+
+```javascript
+import { Playroom, GamepadManager } from '@PlayroomKit/client';
+
+// Initialize PlayroomKit
+await Playroom.init('your-api-key');
+
+// Create gamepad manager
+const gamepadManager = new GamepadManager({
+  deadZone: 0.15,
+  sensitivity: 1.0,
+  enableVibration: true
+});
+
+// Listen for gamepad connections
+gamepadManager.onConnect((gamepad) => {
+  console.log(`Gamepad connected: ${gamepad.id}`);
+  Playroom.setState('myPlayer.hasGamepad', true);
+});
+
+gamepadManager.onDisconnect((gamepad) => {
+  console.log(`Gamepad disconnected: ${gamepad.id}`);
+  Playroom.setState('myPlayer.hasGamepad', false);
+});
+
+// Listen for gamepad input
+gamepadManager.onInput((input) => {
+  // Sync player input
+  Playroom.setState('myPlayer.gamepadInput', {
+    leftStick: input.leftStick,
+    rightStick: input.rightStick,
+    buttons: input.buttons,
+    triggers: input.triggers
+  });
+});
+```
+
+### React Implementation
+
+```jsx
+import { useGamepad, usePlayroomState } from '@PlayroomKit/react';
+
+function GamepadController() {
+  const [playerInput, setPlayerInput] = usePlayroomState('myPlayer.input', {});
+  
+  const { 
+    isConnected, 
+    gamepadCount, 
+    input, 
+    vibrate 
+  } = useGamepad({
+    deadZone: 0.15,
+    sensitivity: 1.0,
+    onInput: (gamepadInput) => {
+      setPlayerInput({
+        movement: gamepadInput.leftStick,
+        camera: gamepadInput.rightStick,
+        actions: gamepadInput.buttons
+      });
+    },
+    onButtonPress: (button) => {
+      handleButtonPress(button);
+    }
+  });
+
+  const handleButtonPress = (button) => {
+    switch (button) {
+      case 'A': // Xbox A / PS X
+        Playroom.rpc('playerJump', {});
+        vibrate({ duration: 100, strongMagnitude: 0.5 });
+        break;
+      case 'B': // Xbox B / PS Circle
+        Playroom.rpc('playerDash', {});
+        break;
+      case 'X': // Xbox X / PS Square
+        Playroom.rpc('playerAttack', {});
+        vibrate({ duration: 200, strongMagnitude: 0.8 });
+        break;
+      case 'Y': // Xbox Y / PS Triangle
+        Playroom.rpc('playerInteract', {});
+        break;
+    }
+  };
+
+  return (
+    <div className="gamepad-status">
+      <p>Gamepad: {isConnected ? 'Connected' : 'Not Connected'}</p>
+      <p>Controllers: {gamepadCount}</p>
+      {isConnected && (
+        <div className="gamepad-info">
+          <p>Left Stick: X: {input.leftStick?.x.toFixed(2)}, Y: {input.leftStick?.y.toFixed(2)}</p>
+          <p>Right Stick: X: {input.rightStick?.x.toFixed(2)}, Y: {input.rightStick?.y.toFixed(2)}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Controller Mapping
+
+### Standard Button Layout
+
+```javascript
+const BUTTON_MAPPING = {
+  // Face buttons
+  0: 'A',        // Xbox A, PS X
+  1: 'B',        // Xbox B, PS Circle  
+  2: 'X',        // Xbox X, PS Square
+  3: 'Y',        // Xbox Y, PS Triangle
+  
+  // Shoulder buttons
+  4: 'LB',       // Left bumper
+  5: 'RB',       // Right bumper
+  6: 'LT',       // Left trigger
+  7: 'RT',       // Right trigger
+  
+  // Special buttons
+  8: 'Select',   // Back/Share
+  9: 'Start',    // Menu/Options
+  10: 'LS',      // Left stick press
+  11: 'RS',      // Right stick press
+  
+  // D-pad
+  12: 'Up',
+  13: 'Down', 
+  14: 'Left',
+  15: 'Right',
+  
+  // System buttons
+  16: 'Home'     // Xbox/PS button
+};
+
+// Axes mapping
+const AXES_MAPPING = {
+  0: 'leftStickX',
+  1: 'leftStickY', 
+  2: 'rightStickX',
+  3: 'rightStickY'
+};
+```
+
+### Custom Controller Profiles
+
+```javascript
+const controllerProfiles = {
+  'Xbox 360 Controller': {
+    buttons: BUTTON_MAPPING,
+    axes: AXES_MAPPING,
+    vibration: true
+  },
+  
+  'DualSense Wireless Controller': {
+    buttons: {
+      0: 'X',      // PS X
+      1: 'Circle', // PS Circle
+      2: 'Square', // PS Square  
+      3: 'Triangle', // PS Triangle
+      4: 'L1',
+      5: 'R1',
+      6: 'L2',
+      7: 'R2',
+      8: 'Share',
+      9: 'Options',
+      10: 'L3',
+      11: 'R3',
+      12: 'Up',
+      13: 'Down',
+      14: 'Left', 
+      15: 'Right',
+      16: 'PS'
+    },
+    axes: AXES_MAPPING,
+    vibration: true,
+    adaptiveTriggers: true
+  }
+};
+```
+
+## Player Movement
+
+### Basic Character Movement
+
+```javascript
+class GamepadPlayer {
+  constructor() {
+    this.position = { x: 0, y: 0 };
+    this.rotation = 0;
+    this.speed = 300;
+    this.runMultiplier = 2.0;
+  }
+  
+  update(input, deltaTime) {
+    const leftStick = input.leftStick;
+    const rightStick = input.rightStick;
+    const buttons = input.buttons;
+    
+    if (leftStick && (Math.abs(leftStick.x) > 0.1 || Math.abs(leftStick.y) > 0.1)) {
+      // Calculate movement speed
+      let currentSpeed = this.speed;
+      if (buttons.LT > 0.5) { // Left trigger for running
+        currentSpeed *= this.runMultiplier;
+      }
+      
+      // Move player
+      this.position.x += leftStick.x * currentSpeed * deltaTime;
+      this.position.y += leftStick.y * currentSpeed * deltaTime;
+      
+      // Rotate based on movement direction
+      this.rotation = Math.atan2(leftStick.y, leftStick.x);
+    }
+    
+    // Camera rotation with right stick
+    if (rightStick && (Math.abs(rightStick.x) > 0.1 || Math.abs(rightStick.y) > 0.1)) {
+      this.cameraRotation += rightStick.x * this.cameraSpeed * deltaTime;
+    }
+    
+    // Sync state
+    Playroom.setState('players.me.position', this.position);
+    Playroom.setState('players.me.rotation', this.rotation);
+  }
+}
+```
+
+### Advanced Input Handling
+
+```javascript
+class AdvancedGamepadInput {
+  constructor() {
+    this.inputBuffer = [];
+    this.combos = {
+      'dash': ['A', 'A'], // Double tap A
+      'special': ['B', 'X', 'Y'], // Sequence combo
+      'block': ['LB', 'RB'] // Simultaneous buttons
+    };
+  }
+  
+  handleInput(input) {
+    // Handle analog triggers as digital inputs
+    const digitalInput = this.processAnalogInputs(input);
+    
+    // Check for combos
+    this.checkCombos(digitalInput.buttons);
+    
+    // Handle directional inputs
+    this.handleDirectionalInput(input.leftStick, input.dpad);
+    
+    // Process complex actions
+    this.processComplexActions(digitalInput);
+  }
+  
+  processAnalogInputs(input) {
+    return {
+      ...input,
+      buttons: {
+        ...input.buttons,
+        // Convert analog triggers to digital
+        LT_Digital: input.triggers.left > 0.8,
+        RT_Digital: input.triggers.right > 0.8,
+        
+        // Convert stick presses to digital movement
+        LeftStick_Up: input.leftStick.y < -0.8,
+        LeftStick_Down: input.leftStick.y > 0.8,
+        LeftStick_Left: input.leftStick.x < -0.8,
+        LeftStick_Right: input.leftStick.x > 0.8
+      }
+    };
+  }
+  
+  checkCombos(buttons) {
+    // Add current input to buffer
+    const pressedButtons = Object.keys(buttons).filter(key => buttons[key]);
+    
+    if (pressedButtons.length > 0) {
+      this.inputBuffer.push({
+        buttons: pressedButtons,
+        timestamp: Date.now()
+      });
+      
+      // Keep buffer manageable (last 10 inputs)
+      if (this.inputBuffer.length > 10) {
+        this.inputBuffer.shift();
+      }
+      
+      // Check for combo matches
+      this.matchCombos();
+    }
+  }
+  
+  matchCombos() {
+    for (const [comboName, sequence] of Object.entries(this.combos)) {
+      if (this.isComboMatched(sequence)) {
+        this.executeCombo(comboName);
+        this.inputBuffer = []; // Clear buffer after successful combo
+        break;
+      }
+    }
+  }
+  
+  executeCombo(comboName) {
+    switch (comboName) {
+      case 'dash':
+        Playroom.rpc('playerDash', { direction: this.lastMovementDirection });
+        break;
+      case 'special':
+        Playroom.rpc('playerSpecialAttack', {});
+        break;
+      case 'block':
+        Playroom.rpc('playerBlock', { active: true });
+        break;
+    }
+  }
+}
+```
+
+## Multiplayer Integration
+
+### Multiple Controller Support
+
+```javascript
+class MultiControllerManager {
+  constructor() {
+    this.controllers = new Map();
+    this.playerAssignments = new Map();
+  }
+  
+  init() {
+    // Poll for gamepads
+    this.pollGamepads();
+    
+    // Handle controller connections
+    window.addEventListener('gamepadconnected', (e) => {
+      this.onControllerConnected(e.gamepad);
+    });
+    
+    window.addEventListener('gamepaddisconnected', (e) => {
+      this.onControllerDisconnected(e.gamepad);
+    });
+  }
+  
+  onControllerConnected(gamepad) {
+    console.log(`Controller ${gamepad.index} connected: ${gamepad.id}`);
+    
+    // Auto-assign to available player slot
+    const availablePlayers = Playroom.getPlayers().filter(p => !p.hasController);
+    
+    if (availablePlayers.length > 0) {
+      const player = availablePlayers[0];
+      this.assignControllerToPlayer(gamepad.index, player.id);
+    }
+  }
+  
+  assignControllerToPlayer(controllerIndex, playerId) {
+    this.playerAssignments.set(controllerIndex, playerId);
+    
+    // Notify other players
+    Playroom.setState(`players.${playerId}.controllerIndex`, controllerIndex);
+    Playroom.setState(`players.${playerId}.hasController`, true);
+  }
+  
+  processControllerInput() {
+    const gamepads = navigator.getGamepads();
+    
+    for (let i = 0; i < gamepads.length; i++) {
+      const gamepad = gamepads[i];
+      if (gamepad && this.playerAssignments.has(i)) {
+        const playerId = this.playerAssignments.get(i);
+        const input = this.parseGamepadInput(gamepad);
+        
+        // Sync input for this player
+        Playroom.setState(`players.${playerId}.input`, input);
+      }
+    }
+  }
+}
+```
+
+### Split-Screen Support
+
+```jsx
+function SplitScreenGame() {
+  const [player1Input, setPlayer1Input] = usePlayroomState('player1.input', {});
+  const [player2Input, setPlayer2Input] = usePlayroomState('player2.input', {});
+  
+  // Player 1 - Controller 0
+  useGamepad({
+    controllerIndex: 0,
+    onInput: (input) => setPlayer1Input(input)
+  });
+  
+  // Player 2 - Controller 1
+  useGamepad({
+    controllerIndex: 1,
+    onInput: (input) => setPlayer2Input(input)
+  });
+  
+  return (
+    <div className="split-screen">
+      <div className="player-1-viewport">
+        <GameView playerId="player1" input={player1Input} />
+      </div>
+      <div className="player-2-viewport">
+        <GameView playerId="player2" input={player2Input} />
+      </div>
+    </div>
+  );
+}
+```
+
+## Haptic Feedback
+
+### Vibration Patterns
+
+```javascript
+class HapticFeedback {
+  constructor(gamepad) {
+    this.gamepad = gamepad;
+    this.isVibrating = false;
+  }
+  
+  // Simple vibration
+  vibrate(duration = 200, intensity = 0.5) {
+    if (this.gamepad.vibrationActuator) {
+      this.gamepad.vibrationActuator.playEffect('dual-rumble', {
+        duration: duration,
+        strongMagnitude: intensity,
+        weakMagnitude: intensity * 0.5
+      });
+    }
+  }
+  
+  // Impact feedback
+  impact(strength = 'medium') {
+    const patterns = {
+      light: { duration: 100, strong: 0.3, weak: 0.1 },
+      medium: { duration: 200, strong: 0.6, weak: 0.3 },
+      heavy: { duration: 300, strong: 1.0, weak: 0.7 }
+    };
+    
+    const pattern = patterns[strength];
+    this.gamepad.vibrationActuator?.playEffect('dual-rumble', {
+      duration: pattern.duration,
+      strongMagnitude: pattern.strong,
+      weakMagnitude: pattern.weak
+    });
+  }
+  
+  // Heartbeat pattern
+  heartbeat(bpm = 60) {
+    const interval = 60000 / bpm; // Convert BPM to milliseconds
+    
+    const pulse = () => {
+      this.vibrate(100, 0.4);
+      setTimeout(() => {
+        this.vibrate(50, 0.2);
+      }, 150);
+    };
+    
+    return setInterval(pulse, interval);
+  }
+  
+  // Engine rumble simulation
+  engineRumble(intensity = 0.3) {
+    if (this.gamepad.vibrationActuator) {
+      this.gamepad.vibrationActuator.playEffect('dual-rumble', {
+        duration: 50,
+        strongMagnitude: intensity + Math.random() * 0.1,
+        weakMagnitude: intensity * 0.5
+      });
+    }
+  }
+}
+
+// Usage in game events
+Playroom.onRpc('playerHit', (data) => {
+  if (data.playerId === myPlayerId) {
+    haptic.impact('heavy');
+  }
+});
+
+Playroom.onRpc('explosion', (data) => {
+  const distance = calculateDistance(myPlayer.position, data.position);
+  const intensity = Math.max(0, 1 - distance / 100);
+  haptic.vibrate(500, intensity);
+});
+```
+
+## Advanced Features
+
+### Adaptive Triggers (PS5 DualSense)
+
+```javascript
+class AdaptiveTriggers {
+  constructor(gamepad) {
+    this.gamepad = gamepad;
+    this.supportsAdaptiveTriggers = this.checkSupport();
+  }
+  
+  checkSupport() {
+    return this.gamepad.id.includes('DualSense') && 
+           'setTriggerEffect' in this.gamepad;
+  }
+  
+  // Weapon resistance simulation
+  setWeaponTrigger(weapon) {
+    if (!this.supportsAdaptiveTriggers) return;
+    
+    const effects = {
+      bow: {
+        mode: 'resistance',
+        startPosition: 0.1,
+        force: 0.8
+      },
+      gun: {
+        mode: 'weapon',
+        startPosition: 0.9,
+        endPosition: 1.0,
+        force: 1.0
+      },
+      sword: {
+        mode: 'vibration',
+        position: 0.5,
+        frequency: 20
+      }
+    };
+    
+    const effect = effects[weapon.type];
+    if (effect) {
+      this.gamepad.setTriggerEffect('right', effect);
+    }
+  }
+  
+  // Vehicle simulation
+  setVehicleTriggers(vehicle) {
+    // Left trigger - brake resistance
+    this.gamepad.setTriggerEffect('left', {
+      mode: 'resistance',
+      startPosition: 0.0,
+      force: vehicle.brakeForce
+    });
+    
+    // Right trigger - accelerator feedback
+    this.gamepad.setTriggerEffect('right', {
+      mode: 'vibration',
+      position: vehicle.throttlePosition,
+      frequency: vehicle.engineRPM / 100
+    });
+  }
+}
+```
+
+### Input Prediction
+
+```javascript
+class InputPredictor {
+  constructor() {
+    this.inputHistory = [];
+    this.predictionBuffer = [];
+  }
+  
+  recordInput(input) {
+    this.inputHistory.push({
+      input: input,
+      timestamp: Date.now()
+    });
+    
+    // Keep last 10 inputs
+    if (this.inputHistory.length > 10) {
+      this.inputHistory.shift();
+    }
+  }
+  
+  predictNextInput() {
+    if (this.inputHistory.length < 3) return null;
+    
+    const recent = this.inputHistory.slice(-3);
+    const velocityX = this.calculateVelocity(recent, 'leftStick.x');
+    const velocityY = this.calculateVelocity(recent, 'leftStick.y');
+    
+    const lastInput = recent[recent.length - 1].input;
+    
+    return {
+      leftStick: {
+        x: lastInput.leftStick.x + velocityX,
+        y: lastInput.leftStick.y + velocityY
+      },
+      confidence: this.calculateConfidence(recent)
+    };
+  }
+  
+  calculateVelocity(inputs, property) {
+    const values = inputs.map(i => this.getNestedProperty(i.input, property));
+    const timeDiffs = inputs.slice(1).map((input, i) => 
+      input.timestamp - inputs[i].timestamp
+    );
+    
+    let totalVelocity = 0;
+    for (let i = 0; i < values.length - 1; i++) {
+      totalVelocity += (values[i + 1] - values[i]) / timeDiffs[i];
+    }
+    
+    return totalVelocity / (values.length - 1);
+  }
+}
+```
+
+## Performance Optimization
+
+### Input Polling Strategy
+
+```javascript
+class OptimizedGamepadPoller {
+  constructor() {
+    this.lastPollTime = 0;
+    this.pollRate = 60; // 60 Hz
+    this.pollInterval = 1000 / this.pollRate;
+  }
+  
+  poll() {
+    const now = performance.now();
+    
+    if (now - this.lastPollTime >= this.pollInterval) {
+      this.processGamepads();
+      this.lastPollTime = now;
+    }
+    
+    requestAnimationFrame(() => this.poll());
+  }
+  
+  processGamepads() {
+    const gamepads = navigator.getGamepads();
+    
+    for (let i = 0; i < gamepads.length; i++) {
+      const gamepad = gamepads[i];
+      if (gamepad) {
+        const input = this.optimizedInputParsing(gamepad);
+        this.sendInputToNetwork(input);
+      }
+    }
+  }
+  
+  optimizedInputParsing(gamepad) {
+    // Only process changed inputs
+    const current = this.parseInput(gamepad);
+    const previous = this.lastInputs.get(gamepad.index);
+    
+    if (previous && this.inputsEqual(current, previous)) {
+      return null; // No change, don't send update
+    }
+    
+    this.lastInputs.set(gamepad.index, current);
+    return current;
+  }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Controller not detected:**
+```javascript
+// Check browser support
+if (!navigator.getGamepads) {
+  console.error('Gamepad API not supported');
+}
+
+// Manual detection
+function detectGamepads() {
+  const gamepads = navigator.getGamepads();
+  console.log('Available gamepads:', gamepads.length);
+  
+  for (let i = 0; i < gamepads.length; i++) {
+    if (gamepads[i]) {
+      console.log(`Gamepad ${i}:`, gamepads[i].id);
+    }
+  }
+}
+```
+
+**Input lag:**
+```javascript
+// Reduce polling interval
+const gamepadManager = new GamepadManager({
+  pollRate: 120, // Higher frequency
+  deadZone: 0.05, // Smaller dead zone
+  bufferSize: 1 // Smaller buffer
+});
+```
+
+**Memory leaks:**
+```javascript
+// Proper cleanup
+class GamepadManager {
+  destroy() {
+    // Stop polling
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+    }
+    
+    // Remove event listeners
+    window.removeEventListener('gamepadconnected', this.onConnect);
+    window.removeEventListener('gamepaddisconnected', this.onDisconnect);
+    
+    // Clear references
+    this.controllers.clear();
+    this.inputHistory.length = 0;
+  }
+}
+```

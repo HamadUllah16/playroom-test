@@ -1,0 +1,178 @@
+---
+title: ⛳️ Introduction
+description: Build multiplayer games and experiences with ease. Connect players instantly with our powerful SDK.
+---
+
+![PlayroomKit Documentation](/docs1.png)
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+
+PlayroomKit is a powerful SDK that makes building multiplayer games and experiences incredibly simple. Whether you're creating a casual browser game, a collaborative app, or an immersive 3D experience, PlayroomKit handles all the complex networking so you can focus on what matters most - your game logic.
+
+<Callout type="info">
+  🚀 **Quick Start**: Get your first multiplayer game running in under 5 minutes!
+</Callout>
+
+
+## Why Choose PlayroomKit?
+
+<Cards>
+  <Card title="🚀 Instant Setup" description="Go from zero to multiplayer in minutes with our simple SDK integration" href="/gameengine/getting-started" />
+  <Card title="🌐 Real-time Sync" description="Ultra-low latency state synchronization across all connected players" href="/multiplayer" />
+  <Card title="🎮 Cross-Platform" description="Works seamlessly on web, mobile, and desktop applications"  href="/multiplayer"/>
+  <Card title="🔧 Developer Friendly" description="TypeScript support, excellent docs, and intuitive APIs" href="/" />
+  <Card title="📊 Built-in Analytics" description="Track player engagement and game performance out of the box" />
+  <Card title="💰 Cost Effective" description="Pay only for what you use with transparent, scalable pricing" href="/billing" />
+</Cards>
+
+## Framework Support
+
+PlayroomKit works with all major web frameworks and game engines:
+
+| Framework/Engine | Status | Documentation |
+|------------------|--------|---------------|
+| **React** | ✅ Full Support | [React Guide](/game-engines/js-ts/react) |
+| **Three.js** | ✅ Full Support | [Three.js Guide](/game-engines/js-ts/threejs) |
+| **React Three Fiber** | ✅ Full Support | [R3F Guide](/game-engines/js-ts/react-three-fiber) |
+| **PixiJS** | ✅ Full Support | [PixiJS Guide](/gameengine/pixijs) |
+| **Vanilla JS** | ✅ Full Support | [JavaScript Guide](/game-engines/js-ts/javascript) |
+| **Unity** | ✅ Full Support | - |
+| **Unreal Engine** | 🔄 Coming Soon | - |
+
+## Quick Start
+
+Get started with PlayroomKit in just a few steps:
+
+<Tabs items={['npm', 'yarn', 'pnpm']}>
+  <Tab value="npm">
+    ```bash
+    npm install playroomkit
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add playroomkit
+    ```
+  </Tab>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add playroomkit
+    ```
+  </Tab>
+</Tabs>
+
+### Basic Implementation
+
+```javascript
+import { insertCoin, onPlayerJoin, myPlayer, isHost } from 'playroomkit';
+
+// Initialize multiplayer session
+await insertCoin();
+
+// Handle new players joining
+onPlayerJoin((player) => {
+  console.log(`${player.getProfile().name} joined the game!`);
+  
+  // Remove player when they leave
+  player.onQuit(() => {
+    console.log(`${player.getProfile().name} left the game`);
+  });
+});
+
+// Check if current player is the host
+if (isHost()) {
+  console.log('You are the host!');
+}
+```
+
+## Core Features
+
+### Real-time State Management
+Synchronize game state across all players with simple getter/setter APIs:
+
+```javascript
+// Set state that syncs to all players
+myPlayer().setState('position', { x: 100, y: 200 });
+
+// Get state from any player
+const playerPosition = somePlayer.getState('position');
+```
+
+### Player Management
+Handle player connections, profiles, and presence:
+
+```javascript
+onPlayerJoin((player) => {
+  const profile = player.getProfile();
+  console.log(`Welcome ${profile.name}!`);
+  
+  // Customize player avatar
+  profile.color.hex; // Player's chosen color
+  profile.photo; // Player's avatar image
+});
+```
+
+### Room-based Multiplayer
+Create private rooms or join public sessions:
+
+```javascript
+// Create a private room
+await insertCoin({ 
+  roomCode: 'CUSTOM-ROOM',
+  maxPlayersPerRoom: 8 
+});
+
+// Share room code with friends
+const roomCode = getRoomCode();
+```
+
+## Pricing Overview
+
+| Plan | Monthly Active Users | Price | Features |
+|------|---------------------|-------|----------|
+| **Free** | Up to 1,000 | $0 | • Basic multiplayer<br/>• Community support<br/>• Standard analytics |
+| **Pro** | Up to 10,000 | $29/month | • Priority support<br/>• Advanced analytics<br/>• Custom branding |
+| **Enterprise** | Unlimited | Custom | • Dedicated infrastructure<br/>• SLA guarantees<br/>• Custom integrations |
+
+<Callout type="warn">
+  📊 **Fair Usage**: Free tier includes generous limits for indie developers and prototypes.
+</Callout>
+
+## Use Cases
+
+### 🎮 Gaming
+- **Casual multiplayer games** (puzzle, card, board games)
+- **Real-time strategy games**
+- **Social gaming experiences**
+- **Party games and mini-games**
+
+### 👥 Collaboration
+- **Virtual whiteboards**
+- **Collaborative design tools**
+- **Team building activities**
+- **Educational applications**
+
+### 🎪 Entertainment
+- **Interactive livestreams**
+- **Virtual events**
+- **Audience participation experiences**
+- **Social viewing parties**
+
+## Next Steps
+
+Ready to start building? Here's what to do next:
+
+<Cards>
+  <Card title="📖 Follow the Tutorial" description="Complete our step-by-step guide to build your first multiplayer game" href="/tutorials" />
+  <Card title="🎮 Explore Templates" description="Start with pre-built game templates and examples" href="/templates" />
+  <Card title="🔧 API Reference" description="Dive deep into the complete API documentation" href="/multiplayer" />
+  <Card title="💬 Join Community" description="Get help and share your creations with other developers" href="https://discord.gg/PlayroomKit" />
+</Cards>
+
+---
+
+<Callout type="tip">
+  💡 **Pro Tip**: Start with our [Three.js tutorial](//game-engines/js-ts/threejs) to see PlayroomKit in action with a complete flying plane demo!
+</Callout>

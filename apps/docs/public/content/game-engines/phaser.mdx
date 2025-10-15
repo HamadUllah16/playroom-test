@@ -1,0 +1,590 @@
+---
+title: Phaser
+description: Build multiplayer 2D games with Phaser and PlayroomKit.
+---
+
+# Phaser Integration
+
+Phaser is a popular 2D game framework for HTML5. PlayroomKit integrates seamlessly with Phaser to add multiplayer functionality to your 2D games.
+
+## Installation
+
+```bash
+npm install phaser @PlayroomKit/client
+```
+
+## Basic Setup
+
+### Game Configuration
+
+```javascript
+import Phaser from 'phaser';
+import { Playroom } from '@PlayroomKit/client';
+
+class GameScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'GameScene' });
+        this.players = new Map();
+    }
+
+    async create() {
+        // Initialize PlayroomKit
+        await Playroom.init('your-api-key');
+        
+        // Create or join room
+        const room = await Playroom.createRoom({ maxPlayers: 4 });
+        console.log(`Room created: ${room.code}`);
+        
+        // Set up multiplayer events
+        this.setupMultiplayerEvents();
+        
+        // Create game world
+        this.createWorld();
+    }
+    
+    setupMultiplayerEvents() {
+        Playroom.onPlayerJoin((player) => {
+            this.addPlayer(player);
+        });
+        
+        Playroom.onPlayerLeave((player) => {
+            this.removePlayer(player);
+        });
+        
+        Playroom.onStateChange('players', (playersData) => {
+            this.updatePlayers(playersData);
+        });
+    }
+    
+    createWorld() {
+        // Create background
+        this.add.rectangle(400, 300, 800, 600, 0x87CEEB);
+        
+        // Create player spawn points
+        this.spawnPoints = [
+            { x: 100, y: 300 },
+            { x: 700, y: 300 },
+            { x: 400, y: 100 },
+            { x: 400, y: 500 }
+        ];
+    }
+}
+
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            debug: false
+        }
+    },
+    scene: GameScene
+};
+
+const game = new Phaser.Game(config);
+```
+
+## Player Management
+
+### Adding and Managing Players
+
+```javascript
+class GameScene extends Phaser.Scene {
+    addPlayer(player) {
+        const spawnPoint = this.spawnPoints[Object.keys(this.players).length];
+        
+        // Create player sprite
+        const playerSprite = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, 'player');
+        playerSprite.setCollideWorldBounds(true);
+        
+        // Add player name text
+        const nameText = this.add.text(spawnPoint.x, spawnPoint.y - 30, player.name, {
+            fontSize: '14px',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2
+        }).setOrigin(0.5);
+        
+        // Store player data
+        this.players.set(player.id, {
+            sprite: playerSprite,
+            nameText: nameText,
+            data: player
+        });
+        
+        // If this is the current player, set up controls
+        if (player.isMe) {
+            this.setupPlayerControls(playerSprite, player.id);
+        }
+    }
+    
+    removePlayer(player) {
+        const playerData = this.players.get(player.id);
+        if (playerData) {
+            playerData.sprite.destroy();
+            playerData.nameText.destroy();
+            this.players.delete(player.id);
+        }
+    }
+    
+    setupPlayerControls(playerSprite, playerId) {
+        this.cursors = this.input.keyboard.createCursorKeys();
+        
+        // WASD controls
+        this.keys = this.input.keyboard.addKeys('W,S,A,D');
+        
+        this.playerSprite = playerSprite;
+        this.playerId = playerId;
+    }
+}
+```
+
+### Real-time Movement
+
+```javascript
+class GameScene extends Phaser.Scene {
+    update() {
+        if (this.playerSprite && this.cursors) {
+            this.handlePlayerMovement();
+        }
+        
+        // Update name text positions
+        this.players.forEach((playerData) => {
+            playerData.nameText.x = playerData.sprite.x;
+            playerData.nameText.y = playerData.sprite.y - 30;
+        });
+    }
+    
+    handlePlayerMovement() {
+        const speed = 200;
+        let moved = false;
+        
+        // Reset velocity
+        this.playerSprite.setVelocity(0);
+        
+        // Check input
+        if (this.cursors.left.isDown || this.keys.A.isDown) {
+            this.playerSprite.setVelocityX(-speed);
+            moved = true;
+        } else if (this.cursors.right.isDown || this.keys.D.isDown) {
+            this.playerSprite.setVelocityX(speed);
+            moved = true;
+        }
+        
+        if (this.cursors.up.isDown || this.keys.W.isDown) {
+            this.playerSprite.setVelocityY(-speed);
+            moved = true;
+        } else if (this.cursors.down.isDown || this.keys.S.isDown) {
+            this.playerSprite.setVelocityY(speed);
+            moved = true;
+        }
+        
+        // Sync position if moved
+        if (moved) {
+            this.syncPlayerPosition();
+        }
+    }
+    
+    syncPlayerPosition() {
+        // Throttle position updates
+        const now = Date.now();
+        if (now - this.lastPositionUpdate < 50) return; // 20fps max
+        
+        this.lastPositionUpdate = now;
+        
+        Playroom.setState(`players.${this.playerId}.position`, {
+            x: this.playerSprite.x,
+            y: this.playerSprite.y
+        });
+    }
+    
+    updatePlayers(playersData) {
+        Object.entries(playersData).forEach(([playerId, playerData]) => {
+            const localPlayer = this.players.get(playerId);
+            if (localPlayer && !localPlayer.data.isMe && playerData.position) {
+                // Smoothly interpolate to new position
+                this.tweens.add({
+                    targets: localPlayer.sprite,
+                    x: playerData.position.x,
+                    y: playerData.position.y,
+                    duration: 100,
+                    ease: 'Linear'
+                });
+            }
+        });
+    }
+}
+```
+
+## Game Objects and Collectibles
+
+### Synchronized Game Objects
+
+```javascript
+class GameScene extends Phaser.Scene {
+    create() {
+        // ... existing code ...
+        
+        // Create collectibles
+        this.collectibles = this.physics.add.group();
+        this.createCollectibles();
+        
+        // Set up collision detection
+        this.physics.add.overlap(
+            this.playerSprite, 
+            this.collectibles, 
+            this.collectItem, 
+            null, 
+            this
+        );
+        
+        // Listen for collectible updates
+        Playroom.onStateChange('collectibles', (collectiblesData) => {
+            this.updateCollectibles(collectiblesData);
+        });
+    }
+    
+    createCollectibles() {
+        // Create initial collectibles
+        for (let i = 0; i < 10; i++) {
+            const x = Phaser.Math.Between(50, 750);
+            const y = Phaser.Math.Between(50, 550);
+            
+            const collectible = this.collectibles.create(x, y, 'coin');
+            collectible.setScale(0.5);
+            collectible.collectibleId = `coin_${i}`;
+        }
+        
+        // Sync initial state
+        const collectiblesData = {};
+        this.collectibles.children.entries.forEach(collectible => {
+            collectiblesData[collectible.collectibleId] = {
+                x: collectible.x,
+                y: collectible.y,
+                collected: false
+            };
+        });
+        
+        Playroom.setState('collectibles', collectiblesData);
+    }
+    
+    collectItem(player, collectible) {
+        // Mark as collected
+        Playroom.setState(`collectibles.${collectible.collectibleId}.collected`, true);
+        
+        // Update score
+        const currentScore = Playroom.getState(`players.${this.playerId}.score`) || 0;
+        Playroom.setState(`players.${this.playerId}.score`, currentScore + 10);
+        
+        // Remove locally (will be synced to other players)
+        collectible.destroy();
+    }
+    
+    updateCollectibles(collectiblesData) {
+        Object.entries(collectiblesData).forEach(([id, data]) => {
+            if (data.collected) {
+                // Find and remove the collectible
+                const collectible = this.collectibles.children.entries.find(
+                    c => c.collectibleId === id
+                );
+                if (collectible) {
+                    collectible.destroy();
+                }
+            }
+        });
+    }
+}
+```
+
+## Combat System
+
+### Real-time Combat
+
+```javascript
+class GameScene extends Phaser.Scene {
+    create() {
+        // ... existing code ...
+        
+        // Create projectiles group
+        this.projectiles = this.physics.add.group();
+        
+        // Set up shooting
+        this.input.on('pointerdown', this.shoot, this);
+        
+        // Listen for projectile events
+        Playroom.onRpc('projectileFired', (data, sender) => {
+            this.createProjectile(data, sender);
+        });
+        
+        Playroom.onRpc('playerHit', (data, sender) => {
+            this.handlePlayerHit(data);
+        });
+    }
+    
+    shoot(pointer) {
+        if (!this.playerSprite) return;
+        
+        const projectileData = {
+            startX: this.playerSprite.x,
+            startY: this.playerSprite.y,
+            targetX: pointer.x,
+            targetY: pointer.y,
+            speed: 300,
+            damage: 25
+        };
+        
+        // Send to other players
+        Playroom.rpc('projectileFired', projectileData);
+        
+        // Create locally
+        this.createProjectile(projectileData, { id: this.playerId });
+    }
+    
+    createProjectile(data, sender) {
+        const projectile = this.projectiles.create(data.startX, data.startY, 'bullet');
+        
+        // Calculate direction
+        const angle = Phaser.Math.Angle.Between(
+            data.startX, data.startY, 
+            data.targetX, data.targetY
+        );
+        
+        // Set velocity
+        this.physics.velocityFromAngle(
+            Phaser.Math.RadToDeg(angle), 
+            data.speed, 
+            projectile.body.velocity
+        );
+        
+        // Set rotation
+        projectile.rotation = angle;
+        
+        // Store data
+        projectile.senderId = sender.id;
+        projectile.damage = data.damage;
+        
+        // Auto-destroy after 3 seconds
+        this.time.delayedCall(3000, () => {
+            if (projectile.active) {
+                projectile.destroy();
+            }
+        });
+        
+        // Check for hits (only if we fired the projectile)
+        if (sender.id === this.playerId) {
+            this.physics.add.overlap(
+                projectile, 
+                Array.from(this.players.values()).map(p => p.sprite),
+                this.projectileHit,
+                null,
+                this
+            );
+        }
+    }
+    
+    projectileHit(projectile, playerSprite) {
+        // Find which player was hit
+        const hitPlayer = Array.from(this.players.values()).find(
+            p => p.sprite === playerSprite
+        );
+        
+        if (hitPlayer && hitPlayer.data.id !== this.playerId) {
+            // Send hit event
+            Playroom.rpc('playerHit', {
+                playerId: hitPlayer.data.id,
+                damage: projectile.damage,
+                hitBy: this.playerId
+            });
+            
+            projectile.destroy();
+        }
+    }
+    
+    handlePlayerHit(data) {
+        if (data.playerId === this.playerId) {
+            // We were hit
+            const currentHealth = Playroom.getState(`players.${this.playerId}.health`) || 100;
+            const newHealth = Math.max(0, currentHealth - data.damage);
+            
+            Playroom.setState(`players.${this.playerId}.health`, newHealth);
+            
+            // Visual feedback
+            const playerData = this.players.get(this.playerId);
+            if (playerData) {
+                this.cameras.main.shake(200, 0.02);
+                
+                // Flash red
+                playerData.sprite.setTint(0xff0000);
+                this.time.delayedCall(200, () => {
+                    playerData.sprite.setTint(0xffffff);
+                });
+            }
+            
+            // Check if player died
+            if (newHealth <= 0) {
+                this.handlePlayerDeath();
+            }
+        }
+    }
+    
+    handlePlayerDeath() {
+        // Respawn after 3 seconds
+        this.time.delayedCall(3000, () => {
+            const spawnPoint = Phaser.Utils.Array.GetRandom(this.spawnPoints);
+            this.playerSprite.setPosition(spawnPoint.x, spawnPoint.y);
+            Playroom.setState(`players.${this.playerId}.health`, 100);
+        });
+    }
+}
+```
+
+## UI Integration
+
+### HUD and Game UI
+
+```javascript
+class HUDScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'HUDScene', active: true });
+    }
+    
+    create() {
+        // Health bar
+        this.healthBarBg = this.add.rectangle(100, 30, 200, 20, 0x000000);
+        this.healthBar = this.add.rectangle(100, 30, 200, 16, 0x00ff00);
+        
+        // Score text
+        this.scoreText = this.add.text(16, 60, 'Score: 0', {
+            fontSize: '18px',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2
+        });
+        
+        // Player list
+        this.playerListText = this.add.text(600, 16, '', {
+            fontSize: '14px',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 1
+        });
+        
+        // Listen for state changes
+        Playroom.onStateChange('players', (playersData) => {
+            this.updateHUD(playersData);
+        });
+    }
+    
+    updateHUD(playersData) {
+        const myPlayer = playersData[Playroom.getMyPlayer().id];
+        
+        if (myPlayer) {
+            // Update health bar
+            const healthPercent = (myPlayer.health || 100) / 100;
+            this.healthBar.scaleX = healthPercent;
+            this.healthBar.fillColor = healthPercent > 0.5 ? 0x00ff00 : 
+                                       healthPercent > 0.25 ? 0xffff00 : 0xff0000;
+            
+            // Update score
+            this.scoreText.setText(`Score: ${myPlayer.score || 0}`);
+        }
+        
+        // Update player list
+        const playerList = Object.values(playersData)
+            .map(player => `${player.name}: ${player.score || 0}`)
+            .join('\n');
+        
+        this.playerListText.setText(`Players:\n${playerList}`);
+    }
+}
+
+// Add HUD scene to game config
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            debug: false
+        }
+    },
+    scene: [GameScene, HUDScene]
+};
+```
+
+## Assets and Preloading
+
+### Asset Management
+
+```javascript
+class PreloadScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'PreloadScene' });
+    }
+    
+    preload() {
+        // Create loading bar
+        const loadingBar = this.add.graphics();
+        const loadingBox = this.add.graphics();
+        
+        loadingBox.fillStyle(0x222222);
+        loadingBox.fillRect(240, 270, 320, 50);
+        
+        // Loading text
+        const loadingText = this.add.text(400, 260, 'Loading...', {
+            fontSize: '20px',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+        
+        // Update loading bar
+        this.load.on('progress', (value) => {
+            loadingBar.clear();
+            loadingBar.fillStyle(0xffffff);
+            loadingBar.fillRect(250, 280, 300 * value, 30);
+        });
+        
+        // Load game assets
+        this.load.image('player', 'assets/player.png');
+        this.load.image('coin', 'assets/coin.png');
+        this.load.image('bullet', 'assets/bullet.png');
+        this.load.image('background', 'assets/background.png');
+        
+        // Load audio
+        this.load.audio('shoot', 'assets/shoot.wav');
+        this.load.audio('collect', 'assets/collect.wav');
+        this.load.audio('hit', 'assets/hit.wav');
+    }
+    
+    create() {
+        this.scene.start('GameScene');
+    }
+}
+
+// Update game config to include preload scene
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            debug: false
+        }
+    },
+    scene: [PreloadScene, GameScene, HUDScene]
+};
+```
+
+## Best Practices
+
+1. **Throttle network updates** - Don't send position updates every frame
+2. **Use object pooling** - Reuse projectiles and effects for better performance
+3. **Validate server-side** - Important game actions should be validated on the server
+4. **Handle disconnections** - Gracefully handle player disconnections
+5. **Optimize for mobile** - Ensure your game works well on touch devices 

@@ -1,0 +1,117 @@
+---
+title: Getting Started 
+description: PlayroomKit provides a seamless, native integration with Unity, allowing you to build multiplayer games using C# and Unity's powerful game engine.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+<Cards>
+  <Card
+    title="API Reference"
+    description="Full documentation for PlayroomKit's Unity API."
+    href="/docs/game-engines/unity/api-reference"
+  />
+  <Card
+    title="Playroom Dev Manager"
+    description="Multi-instance testing and mock mode for Unity."
+    href="/docs/game-engines/unity/playroom-dev-manager"
+  />
+  <Card
+    title="Mock Mode"
+    description="Test your game logic in the Unity Editor without deploying."
+    href="/docs/game-engines/unity/mock-mode"
+  />
+  <Card
+    title="Multiple Player Testing"
+    description="Simulate multiplayer scenarios in the Unity Editor."
+    href="/docs/game-engines/unity/multiple-player-testing"
+  />
+  <Card
+    title="Examples"
+    description="See simple and advanced PlayroomKit Unity demos."
+    href="/docs/game-engines/unity/examples"
+  />
+</Cards>
+
+---
+
+## Installation
+
+1. Download the PlayroomKit Unity package from the dashboard
+2. Import the package into your Unity project
+3. Configure your API keys in the PlayroomKit settings
+
+## Quick Setup
+
+```csharp
+using PlayroomKit;
+
+public class GameManager : MonoBehaviour
+{
+    void Start()
+    {
+        // Initialize PlayroomKit
+        Playroom.Init("your-api-key", () => {
+            Debug.Log("PlayroomKit initialized!");
+        });
+    }
+}
+```
+
+## Features
+
+- **Real-time multiplayer** - Synchronize game state across players
+- **Player management** - Handle player connections and disconnections
+- **Room system** - Create and manage game rooms
+- **State synchronization** - Keep game objects in sync
+
+## Examples
+
+### Creating a Room
+
+```csharp
+Playroom.CreateRoom(new RoomOptions {
+    maxPlayers = 4,
+    roomCode = "GAME123"
+}, (room) => {
+    Debug.Log($"Room created: {room.code}");
+});
+```
+
+### Joining a Room
+
+```csharp
+Playroom.JoinRoom("GAME123", (success) => {
+    if (success) {
+        Debug.Log("Successfully joined room!");
+    }
+});
+```
+
+### Player State Synchronization
+
+```csharp
+public class PlayerController : MonoBehaviour
+{
+    void Update()
+    {
+        if (Playroom.IsMyPlayer(playerId))
+        {
+            // Update position for this player
+            Playroom.SetPlayerState(playerId, "position", transform.position);
+        }
+        else
+        {
+            // Sync position from other players
+            Vector3 networkPosition = Playroom.GetPlayerState<Vector3>(playerId, "position");
+            transform.position = Vector3.Lerp(transform.position, networkPosition, Time.deltaTime * 10f);
+        }
+    }
+}
+```
+
+## Next Steps
+
+- Learn about [State Management](/docs/multiplayer/modules/state-management)
+- Explore [RPC Communication](/docs/multiplayer/modules/rpc)
+- Check out [Unity Templates](/docs/templates)

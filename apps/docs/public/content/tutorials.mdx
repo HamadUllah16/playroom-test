@@ -1,0 +1,285 @@
+---
+title: Tutorials
+description: Step-by-step guides to build multiplayer games with PlayroomKit.
+---
+
+# Tutorials
+
+Learn how to build multiplayer games step-by-step with our comprehensive tutorials.
+
+## Getting Started Tutorials
+
+### 1. Your First Multiplayer Game
+**Difficulty:** Beginner | **Time:** 15 minutes
+
+Build a simple multiplayer counter game to learn the basics.
+
+**What you'll learn:**
+- Setting up PlayroomKit
+- Creating rooms and joining players
+- Synchronizing state between players
+- Handling player connections
+
+[Start Tutorial →](#first-game-tutorial)
+
+### 2. Building a Turn-Based Game
+**Difficulty:** Beginner | **Time:** 30 minutes
+
+Create a tic-tac-toe game with turn-based mechanics.
+
+**What you'll learn:**
+- Turn management
+- Game state validation
+- Win condition detection
+- Player-specific actions
+
+[Start Tutorial →](#turn-based-tutorial)
+
+### 3. Real-Time Game Development
+**Difficulty:** Intermediate | **Time:** 45 minutes
+
+Build a real-time multiplayer drawing game.
+
+**What you'll learn:**
+- High-frequency updates
+- Canvas synchronization
+- Optimizing network traffic
+- Handling disconnections
+
+[Start Tutorial →](#realtime-tutorial)
+
+## Framework-Specific Tutorials
+
+### React Tutorials
+
+#### Building a Quiz Game with React
+Learn how to use PlayroomKit's React hooks to build an interactive quiz game.
+
+**Features covered:**
+- `usePlayroom` and `usePlayroomState`
+- Real-time scoring
+- Timer mechanics
+- Player elimination
+
+#### Multiplayer Chess with React
+Advanced React tutorial covering complex game state management.
+
+**Features covered:**
+- Complex state structures
+- Move validation
+- Game history
+- Spectator mode
+
+### Unity Tutorials
+
+#### 3D Multiplayer Racing Game
+Build a 3D racing game with Unity and PlayroomKit.
+
+**Features covered:**
+- Position synchronization
+- Physics replication
+- Lap timing
+- Leaderboards
+
+#### Battle Royale Prototype
+Create a simple battle royale game with zone mechanics.
+
+**Features covered:**
+- Large player counts
+- Zone shrinking mechanics
+- Player elimination
+- Spectator camera
+
+### JavaScript Tutorials
+
+#### Collaborative Drawing Board
+Build a real-time drawing application with vanilla JavaScript.
+
+**Features covered:**
+- Canvas drawing sync
+- Brush tools
+- Color selection
+- Save/load drawings
+
+#### Multiplayer Platformer
+Create a side-scrolling platformer with multiplayer features.
+
+**Features covered:**
+- Player movement sync
+- Collision detection
+- Level progression
+- Power-ups
+
+## First Game Tutorial
+
+Let's build your first multiplayer game - a simple counter that players can increment together.
+
+### Step 1: Setup
+
+Create a new HTML file:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My First Multiplayer Game</title>
+    <script src="https://cdn.PlayroomKit.com/client.js"></script>
+</head>
+<body>
+    <div id="game">
+        <h1>Multiplayer Counter</h1>
+        <div id="counter">0</div>
+        <button id="increment">Increment</button>
+        <div id="players"></div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
+```
+
+### Step 2: Initialize PlayroomKit
+
+Create `game.js`:
+
+```javascript
+class CounterGame {
+    constructor() {
+        this.counter = 0;
+        this.players = [];
+        this.init();
+    }
+    
+    async init() {
+        // Initialize PlayroomKit
+        await Playroom.init('your-api-key-here');
+        
+        // Create or join a room
+        const room = await Playroom.createRoom({
+            maxPlayers: 4,
+            roomCode: 'COUNTER'
+        });
+        
+        console.log(`Room created: ${room.code}`);
+        
+        // Set up event listeners
+        this.setupEvents();
+        
+        // Initial render
+        this.render();
+    }
+    
+    setupEvents() {
+        // Listen for player events
+        Playroom.onPlayerJoin((player) => {
+            console.log(`${player.name} joined!`);
+            this.updatePlayers();
+        });
+        
+        Playroom.onPlayerLeave((player) => {
+            console.log(`${player.name} left!`);
+            this.updatePlayers();
+        });
+        
+        // Listen for counter updates
+        Playroom.onStateChange('counter', (newValue) => {
+            this.counter = newValue;
+            this.render();
+        });
+        
+        // Handle increment button
+        document.getElementById('increment').addEventListener('click', () => {
+            this.incrementCounter();
+        });
+    }
+    
+    incrementCounter() {
+        const newValue = (Playroom.getState('counter') || 0) + 1;
+        Playroom.setState('counter', newValue);
+    }
+    
+    updatePlayers() {
+        this.players = Playroom.getPlayers();
+        this.render();
+    }
+    
+    render() {
+        // Update counter display
+        document.getElementById('counter').textContent = this.counter;
+        
+        // Update players list
+        const playersDiv = document.getElementById('players');
+        playersDiv.innerHTML = `
+            <h3>Players (${this.players.length})</h3>
+            ${this.players.map(player => 
+                `<div>${player.name} ${player.isHost ? '👑' : ''}</div>`
+            ).join('')}
+        `;
+    }
+}
+
+// Start the game
+const game = new CounterGame();
+```
+
+### Step 3: Test Your Game
+
+1. Replace `'your-api-key-here'` with your actual API key
+2. Open the HTML file in multiple browser tabs
+3. Click the increment button in different tabs
+4. Watch the counter synchronize across all instances!
+
+### What's Happening?
+
+- **Playroom.init()** - Connects to PlayroomKit servers
+- **Playroom.createRoom()** - Creates a multiplayer room
+- **Playroom.setState()** - Updates shared game state
+- **Playroom.onStateChange()** - Listens for state updates
+- **Playroom.onPlayerJoin/Leave()** - Handles player events
+
+### Next Steps
+
+Now that you have a basic multiplayer game:
+1. Add player-specific counters
+2. Implement a reset button
+3. Add sound effects
+4. Style it with CSS
+5. Deploy it online
+
+[Try the Turn-Based Tutorial →](#turn-based-tutorial)
+
+## Advanced Topics
+
+### Performance Optimization
+- State update throttling
+- Network optimization
+- Memory management
+- Bandwidth monitoring
+
+### Security Best Practices
+- Input validation
+- Anti-cheat measures
+- Rate limiting
+- Data sanitization
+
+### Scaling Your Game
+- Server regions
+- Load balancing
+- Analytics integration
+- Monitoring setup
+
+### Mobile Development
+- Touch controls
+- Responsive design
+- Performance on mobile
+- App store deployment
+
+## Community Contributions
+
+We welcome tutorial contributions from the community:
+
+- **Submit a tutorial** via GitHub
+- **Request a tutorial** topic
+- **Improve existing tutorials**
+- **Translate tutorials** to other languages
+
+[Contribute a Tutorial →](https://github.com/PlayroomKit/tutorials) 

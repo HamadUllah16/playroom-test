@@ -1,0 +1,468 @@
+---
+title: React Three Fiber
+description: Build immersive 3D multiplayer games with React Three Fiber and PlayroomKit.
+---
+
+## Installation
+
+```bash
+npm install @react-three/fiber @react-three/drei three @PlayroomKit/react
+```
+
+## Basic Setup
+
+### Scene Configuration
+
+```jsx
+import { Canvas } from '@react-three/fiber';
+import { PlayroomProvider } from '@PlayroomKit/react';
+import { MultiplayerScene } from './MultiplayerScene';
+
+function App() {
+    return (
+        <PlayroomProvider apiKey="your-api-key">
+            <div style={{ width: '100vw', height: '100vh' }}>
+                <Canvas camera={{ position: [0, 5, 10], fov: 60 }}>
+                    <MultiplayerScene />
+                </Canvas>
+            </div>
+        </PlayroomProvider>
+    );
+}
+```
+
+### Multiplayer Scene
+
+```jsx
+import { usePlayroom, usePlayroomState } from '@PlayroomKit/react';
+import { OrbitControls, Text } from '@react-three/drei';
+import { MultiplayerPlayer } from './MultiplayerPlayer';
+
+function MultiplayerScene() {
+    const { players, isConnected } = usePlayroom();
+    const [gameState, setGameState] = usePlayroomState('game', { started: false });
+    
+    if (!isConnected) {
+        return (
+            <Text position={[0, 0, 0]} fontSize={2} color="white">
+                Connecting...
+            </Text>
+        );
+    }
+    
+    return (
+        <>
+            {/* Lighting */}
+            <ambientLight intensity={0.4} />
+            <pointLight position={[10, 10, 10]} />
+            
+            {/* Environment */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
+                <planeGeometry args={[20, 20]} />
+                <meshStandardMaterial color="green" />
+            </mesh>
+            
+            {/* Players */}
+            {players.map((player) => (
+                <MultiplayerPlayer key={player.id} player={player} />
+            ))}
+            
+            {/* Game UI */}
+            <Text position={[0, 8, 0]} fontSize={1} color="white">
+                Players: {players.length}
+            </Text>
+            
+            {/* Camera controls */}
+            <OrbitControls />
+        </>
+    );
+}
+```
+
+## Player Management
+
+### Player Component
+
+```jsx
+import { useRef, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { usePlayroomState, useRpc } from '@PlayroomKit/react';
+import * as THREE from 'three';
+
+function MultiplayerPlayer({ player }) {
+    const meshRef = useRef();
+    const [position, setPosition] = usePlayroomState(`players.${player.id}.position`, [0, 1, 0]);
+    const [rotation, setRotation] = usePlayroomState(`players.${player.id}.rotation`, [0, 0, 0]);
+    const [color, setColor] = usePlayroomState(`players.${player.id}.color`, 
+        `hsl(${Math.random() * 360}, 70%, 50%)`
+    );
+    
+    // Movement for local player
+    useEffect(() => {
+        if (player.isMe) {
+            const handleKeyPress = (event) => {
+                const speed = 0.1;
+                const newPosition = [...position];
+                
+                switch (event.key) {
+                    case 'w':
+                    case 'W':
+                        newPosition[2] -= speed;
+                        break;
+                    case 's':
+                    case 'S':
+                        newPosition[2] += speed;
+                        break;
+                    case 'a':
+                    case 'A':
+                        newPosition[0] -= speed;
+                        break;
+                    case 'd':
+                    case 'D':
+                        newPosition[0] += speed;
+                        break;
+                }
+                
+                setPosition(newPosition);
+            };
+            
+            window.addEventListener('keydown', handleKeyPress);
+            return () => window.removeEventListener('keydown', handleKeyPress);
+        }
+    }, [player.isMe, position, setPosition]);
+    
+    // Smooth movement animation
+    useFrame(() => {
+        if (meshRef.current) {
+            meshRef.current.position.lerp(
+                new THREE.Vector3(...position), 
+                0.1
+            );
+            meshRef.current.rotation.setFromVector3(
+                new THREE.Vector3(...rotation)
+            );
+        }
+    });
+    
+    return (
+        <group>
+            {/* Player body */}
+            <mesh ref={meshRef} position={position}>
+                <capsuleGeometry args={[0.5, 1]} />
+                <meshStandardMaterial color={color} />
+            </mesh>
+            
+            {/* Player name */}
+            <Text
+                position={[position[0], position[1] + 2, position[2]]}
+                fontSize={0.5}
+                color="white"
+                anchorX="center"
+                anchorY="middle"
+            >
+                {player.name}
+            </Text>
+            
+            {/* Host indicator */}
+            {player.isHost && (
+                <mesh position={[position[0], position[1] + 2.5, position[2]]}>
+                    <sphereGeometry args={[0.1]} />
+                    <meshBasicMaterial color="gold" />
+                </mesh>
+            )}
+        </group>
+    );
+}
+```
+
+## Interactive Objects
+
+### Synchronized Objects
+
+```jsx
+import { useRef, useState } from 'react';
+import { usePlayroomState, useRpc } from '@PlayroomKit/react';
+
+function InteractiveBox({ id, initialPosition = [0, 1, 0] }) {
+    const meshRef = useRef();
+    const [position, setPosition] = usePlayroomState(`objects.${id}.position`, initialPosition);
+    const [clicked, setClicked] = usePlayroomState(`objects.${id}.clicked`, false);
+    const [color, setColor] = usePlayroomState(`objects.${id}.color`, 'orange');
+    
+    const handleBoxClick = useRpc('boxClicked');
+    
+    useRpc('boxClicked', (data) => {
+        if (data.objectId === id) {
+            // Change color when clicked
+            const colors = ['red', 'blue', 'green', 'purple', 'yellow'];
+            const newColor = colors[Math.floor(Math.random() * colors.length)];
+            setColor(newColor);
+            
+            // Add click effect
+            setClicked(true);
+            setTimeout(() => setClicked(false), 200);
+        }
+    });
+    
+    const handleClick = (event) => {
+        event.stopPropagation();
+        
+        // Send click event to all players
+        handleBoxClick({ objectId: id, position: event.point });
+        
+        // Move box slightly
+        const newPos = [...position];
+        newPos[1] += 0.5;
+        setPosition(newPos);
+        
+        // Gravity effect
+        setTimeout(() => {
+            const resetPos = [...newPos];
+            resetPos[1] = initialPosition[1];
+            setPosition(resetPos);
+        }, 1000);
+    };
+    
+    return (
+        <mesh
+            ref={meshRef}
+            position={position}
+            scale={clicked ? [1.2, 1.2, 1.2] : [1, 1, 1]}
+            onClick={handleClick}
+        >
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color={color} />
+        </mesh>
+    );
+}
+```
+
+### Collectible Items
+
+```jsx
+import { useRef, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { usePlayroomState, usePlayroom } from '@PlayroomKit/react';
+import * as THREE from 'three';
+
+function Collectible({ id, position }) {
+    const meshRef = useRef();
+    const { myPlayer } = usePlayroom();
+    const [collected, setCollected] = usePlayroomState(`collectibles.${id}.collected`, false);
+    const [score, setScore] = usePlayroomState(`players.${myPlayer?.id}.score`, 0);
+    
+    // Floating animation
+    useFrame((state) => {
+        if (meshRef.current && !collected) {
+            meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.2;
+            meshRef.current.rotation.y += 0.02;
+        }
+    });
+    
+    // Collision detection
+    useFrame(() => {
+        if (meshRef.current && !collected && myPlayer) {
+            const playerPos = myPlayer.getState('position') || [0, 1, 0];
+            const distance = meshRef.current.position.distanceTo(
+                new THREE.Vector3(...playerPos)
+            );
+            
+            if (distance < 1) {
+                // Collect the item
+                setCollected(true);
+                setScore(score + 10);
+            }
+        }
+    });
+    
+    if (collected) return null;
+    
+    return (
+        <mesh ref={meshRef} position={position}>
+            <sphereGeometry args={[0.3]} />
+            <meshBasicMaterial color="yellow" />
+            {/* Glow effect */}
+            <pointLight color="yellow" intensity={0.5} distance={3} />
+        </mesh>
+    );
+}
+```
+
+## Physics Integration
+
+### Physics-Based Movement
+
+```jsx
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { RigidBody } from '@react-three/rapier';
+import { usePlayroomState } from '@PlayroomKit/react';
+
+function PhysicsPlayer({ player }) {
+    const rigidBodyRef = useRef();
+    const [velocity, setVelocity] = usePlayroomState(`players.${player.id}.velocity`, [0, 0, 0]);
+    const [isGrounded, setIsGrounded] = usePlayroomState(`players.${player.id}.grounded`, false);
+    
+    useFrame(() => {
+        if (rigidBodyRef.current && player.isMe) {
+            // Sync physics state
+            const position = rigidBodyRef.current.translation();
+            const vel = rigidBodyRef.current.linvel();
+            
+            setVelocity([vel.x, vel.y, vel.z]);
+            
+            // Check if grounded
+            const grounded = Math.abs(vel.y) < 0.1 && position.y < 1.1;
+            setIsGrounded(grounded);
+        }
+    });
+    
+    return (
+        <RigidBody ref={rigidBodyRef} position={[0, 2, 0]}>
+            <mesh>
+                <capsuleGeometry args={[0.5, 1]} />
+                <meshStandardMaterial color={player.isMe ? 'blue' : 'red'} />
+            </mesh>
+        </RigidBody>
+    );
+}
+```
+
+## VR Integration
+
+### VR Multiplayer Support
+
+```jsx
+import { VRCanvas } from '@react-three/xr';
+import { useXR } from '@react-three/xr';
+
+function VRMultiplayerGame() {
+    return (
+        <VRCanvas>
+            <VRScene />
+        </VRCanvas>
+    );
+}
+
+function VRScene() {
+    const { isPresenting, controllers } = useXR();
+    const { players } = usePlayroom();
+    
+    return (
+        <>
+            <ambientLight intensity={0.5} />
+            <pointLight position={[10, 10, 10]} />
+            
+            {/* VR Controllers */}
+            {controllers.map((controller, index) => (
+                <VRController key={index} controller={controller} />
+            ))}
+            
+            {/* Players */}
+            {players.map((player) => (
+                <VRPlayer key={player.id} player={player} />
+            ))}
+        </>
+    );
+}
+
+function VRController({ controller }) {
+    const [position, setPosition] = usePlayroomState('vrController.position', [0, 0, 0]);
+    
+    useFrame(() => {
+        if (controller.controller) {
+            const pos = controller.controller.position;
+            setPosition([pos.x, pos.y, pos.z]);
+        }
+    });
+    
+    return (
+        <mesh position={position}>
+            <boxGeometry args={[0.1, 0.1, 0.3]} />
+            <meshStandardMaterial color="gray" />
+        </mesh>
+    );
+}
+```
+
+## Advanced Features
+
+### Particle Systems
+
+```jsx
+import { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+
+function MultiplayerParticles({ player }) {
+    const particlesRef = useRef();
+    const [particleState] = usePlayroomState(`particles.${player.id}`, { active: false });
+    
+    const particles = useMemo(() => {
+        const count = 100;
+        const positions = new Float32Array(count * 3);
+        
+        for (let i = 0; i < count; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 10;
+            positions[i * 3 + 1] = Math.random() * 10;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
+        }
+        
+        return positions;
+    }, []);
+    
+    useFrame(() => {
+        if (particlesRef.current && particleState.active) {
+            particlesRef.current.rotation.y += 0.01;
+        }
+    });
+    
+    if (!particleState.active) return null;
+    
+    return (
+        <points ref={particlesRef}>
+            <bufferGeometry>
+                <bufferAttribute
+                    attach="attributes-position"
+                    count={particles.length / 3}
+                    array={particles}
+                    itemSize={3}
+                />
+            </bufferGeometry>
+            <pointsMaterial size={0.1} color="white" />
+        </points>
+    );
+}
+```
+
+### Audio Integration
+
+```jsx
+import { PositionalAudio } from '@react-three/drei';
+import { useRpc, usePlayroomState } from '@PlayroomKit/react';
+
+function SpatialAudio({ player }) {
+    const [audioState] = usePlayroomState(`audio.${player.id}`, { playing: false });
+    const playSound = useRpc('playSound');
+    
+    useRpc('playSound', (data) => {
+        if (data.playerId === player.id) {
+            // Play sound for this player
+            console.log(`Playing sound for ${player.name}`);
+        }
+    });
+    
+    return (
+        <group position={player.getState('position') || [0, 1, 0]}>
+            {audioState.playing && (
+                <PositionalAudio
+                    url="/sounds/player-sound.mp3"
+                    distance={10}
+                    loop
+                    autoplay
+                />
+            )}
+        </group>
+    );
+}
+``` 

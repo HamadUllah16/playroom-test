@@ -1,0 +1,306 @@
+---
+title: State Management
+description: Synchronize game state across all players in real-time.
+---
+
+# State Management
+
+PlayroomKit's state management system keeps your game data synchronized across all connected players in real-time.
+
+## Setting State
+
+```javascript
+// Set a simple value
+Playroom.setState('gameStarted', true);
+
+// Set an object
+Playroom.setState('player', {
+    position: { x: 100, y: 200 },
+    health: 75,
+    score: 1250
+});
+
+// Set nested state
+Playroom.setState('inventory.weapons', ['sword', 'bow']);
+```
+
+## Getting State
+
+```javascript
+// Get current state
+const gameStarted = Playroom.getState('gameStarted');
+const playerData = Playroom.getState('player');
+
+// Get all state
+const allState = Playroom.getState();
+```
+
+## Listening to Changes
+
+```javascript
+// Listen to specific key changes
+Playroom.onStateChange('player.health', (newHealth, oldHealth) => {
+    console.log(`Health changed from ${oldHealth} to ${newHealth}`);
+    updateHealthBar(newHealth);
+});
+
+// Listen to all state changes
+Playroom.onStateChange('*', (newState) => {
+    console.log('State updated:', newState);
+});
+```
+
+## Player State
+
+Each player can have their own isolated state:
+
+```javascript
+// Set state for current player
+myPlayer.setState('ready', true);
+myPlayer.setState('character', 'warrior');
+
+// Get another player's state
+const otherPlayer = Playroom.getPlayer('player-id');
+const isReady = otherPlayer.getState('ready');
+
+// Listen to player state changes
+otherPlayer.onStateChange('position', (newPos) => {
+    movePlayerSprite(otherPlayer.id, newPos);
+});
+```
+
+## State Persistence
+
+```javascript
+// Make state persistent across sessions
+Playroom.setState('highScore', 9999, { persistent: true });
+
+// Temporary state (default)
+Playroom.setState('currentRound', 3, { persistent: false });
+```
+
+## Advanced State Features
+
+### State Validation
+
+```javascript
+// Set state with validation
+Playroom.setState('score', 100, {
+    validate: (value) => value >= 0 && value <= 10000
+});
+
+// Custom validator
+Playroom.setStateValidator('playerPosition', (position) => {
+    return position.x >= 0 && position.x <= 1000 &&
+           position.y >= 0 && position.y <= 1000;
+});
+```
+
+### State Permissions
+
+```javascript
+// Only host can modify certain state
+Playroom.setState('gameSettings', settings, { 
+    hostOnly: true 
+});
+
+// Player-specific permissions
+Playroom.setState('playerScore', 100, {
+    ownerOnly: true  // Only the player can modify their own score
+});
+```
+
+### Batch Updates
+
+```javascript
+// Instead of multiple setState calls
+Playroom.setState('player.health', 75);
+Playroom.setState('player.mana', 50);
+Playroom.setState('player.experience', 1200);
+
+// Batch them together
+Playroom.batchUpdate(() => {
+    Playroom.setState('player.health', 75);
+    Playroom.setState('player.mana', 50);
+    Playroom.setState('player.experience', 1200);
+});
+
+// Or use object notation
+Playroom.setState('player', {
+    health: 75,
+    mana: 50,
+    experience: 1200
+});
+```
+
+## State Synchronization Patterns
+
+### Optimistic Updates
+
+```javascript
+// Update locally first, then sync
+function updatePlayerPosition(x, y) {
+    // Update locally for immediate feedback
+    renderPlayerAt(x, y);
+    
+    // Sync with server
+    myPlayer.setState('position', { x, y });
+}
+```
+
+### Conflict Resolution
+
+```javascript
+// Handle conflicting updates
+Playroom.onStateConflict('score', (localValue, remoteValue) => {
+    // Use the higher score
+    return Math.max(localValue, remoteValue);
+});
+```
+
+### Delta Synchronization
+
+```javascript
+// Only sync changes, not entire state
+const gameBoard = Playroom.getState('board');
+gameBoard[5] = 'X';  // Modify array
+
+// Only sync the changed cell
+Playroom.setState('board.5', 'X');
+```
+
+## React Integration
+
+```jsx
+import { usePlayroomState } from '@PlayroomKit/react';
+
+function GameBoard() {
+    const [board, setBoard] = usePlayroomState('board', Array(9).fill(null));
+    const [currentPlayer, setCurrentPlayer] = usePlayroomState('currentPlayer', 'X');
+    const [gameStatus, setGameStatus] = usePlayroomState('status', 'waiting');
+    
+    const makeMove = (index) => {
+        if (board[index] || gameStatus !== 'playing') return;
+        
+        const newBoard = [...board];
+        newBoard[index] = currentPlayer;
+        setBoard(newBoard);
+        
+        // Switch players
+        setCurrentPlayer(currentPlayer === 'X' ? 'O' : 'X');
+        
+        // Check for winner
+        const winner = checkWinner(newBoard);
+        if (winner) {
+            setGameStatus('finished');
+        }
+    };
+    
+    return (
+        <div className="game-board">
+            {board.map((cell, index) => (
+                <button key={index} onClick={() => makeMove(index)}>
+                    {cell}
+                </button>
+            ))}
+        </div>
+    );
+}
+```
+
+## Performance Optimization
+
+### Throttling Updates
+
+```javascript
+// For frequently updated data like position
+let lastPositionUpdate = 0;
+const POSITION_UPDATE_INTERVAL = 100; // ms
+
+function updatePosition(x, y) {
+    const now = Date.now();
+    if (now - lastPositionUpdate > POSITION_UPDATE_INTERVAL) {
+        Playroom.setState('player.position', { x, y });
+        lastPositionUpdate = now;
+    }
+}
+```
+
+### State Compression
+
+```javascript
+// Compress large state objects
+Playroom.setState('mapData', largeMapObject, {
+    compress: true
+});
+
+// Delta compression for arrays
+Playroom.setState('gameBoard', newBoard, {
+    deltaOnly: true,
+    previousValue: oldBoard
+});
+```
+
+### Selective Synchronization
+
+```javascript
+// Only sync to specific players
+Playroom.setState('secretInfo', data, {
+    syncTo: ['player1', 'player2']  // Only sync to these players
+});
+
+// Exclude certain players
+Playroom.setState('surprise', data, {
+    excludeFrom: ['birthday-player']
+});
+```
+
+## Best Practices
+
+### State Structure
+
+```javascript
+// Good: Flat structure when possible
+Playroom.setState('playerHealth', 100);
+Playroom.setState('playerMana', 50);
+
+// Good: Logical grouping
+Playroom.setState('player', {
+    health: 100,
+    mana: 50,
+    position: { x: 0, y: 0 }
+});
+
+// Avoid: Deep nesting
+Playroom.setState('game.level.area.room.player.stats.health', 100);
+```
+
+### Naming Conventions
+
+```javascript
+// Use descriptive names
+Playroom.setState('currentTurn', 0);
+Playroom.setState('gamePhase', 'preparation');
+Playroom.setState('winCondition', 'last-player-standing');
+
+// Namespace related state
+Playroom.setState('ui.showInventory', false);
+Playroom.setState('ui.chatVisible', true);
+Playroom.setState('audio.musicVolume', 0.8);
+```
+
+### Error Handling
+
+```javascript
+try {
+    Playroom.setState('complexObject', data);
+} catch (error) {
+    console.error('Failed to set state:', error);
+    // Handle the error gracefully
+}
+
+// Listen for state errors
+Playroom.onStateError((error, key, value) => {
+    console.error(`State error for ${key}:`, error);
+});
+``` 
