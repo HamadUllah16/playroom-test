@@ -1,8 +1,15 @@
 import fs from "fs";
 import path from "path";
 
-// Adjust paths relative to this script
-const src = path.join(process.cwd(), "content");           // docs/apps/docs/content
-const dest = path.join(process.cwd(), ".next", "content"); // docs/apps/docs/.next/content
+const src = path.join(process.cwd(), "content"); // original content folder
+const dest = path.join(process.cwd(), "public", "content"); // destination in public
 
+// Delete old content folder if it exists
+if (fs.existsSync(dest)) {
+    fs.rmSync(dest, { recursive: true, force: true });
+    console.log(`🗑 Deleted existing public/content folder`);
+}
+
+// Copy recursively from source to destination
 fs.cpSync(src, dest, { recursive: true });
+console.log(`✅ Copied content folder to public/content`);
